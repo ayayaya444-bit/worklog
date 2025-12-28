@@ -1,1 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WorkLog Pro</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="工作紀錄">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2666/2666505.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background-color: #f1f5f9;
+            -webkit-tap-highlight-color: transparent;
+        }
+        input, select, textarea { font-size: 16px !important; } 
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .active-tab-btn { color: #2563eb !important; border-top: 2px solid #2563eb; }
+    </style>
+</head>
+<body class="pb-24">
 
+    <nav class="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
+        <div>
+            <h1 class="text-lg font-bold">工作紀錄 Pro</h1>
+            <p class="text-[10px] opacity-60">計時規則：每6分 0.1 小時</p>
+        </div>
+        <div class="text-right">
+            <p class="text-xs opacity-70">今日累積</p>
+            <p class="text-xl font-mono text-blue-400" id="navDayTotal">0.0</p>
+        </div>
+    </nav>
+
+    <div class="p-4 max-w-md mx-auto">
+        
+        <div id="tab-form" class="tab-content active">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <form id="timeForm" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="col-span-2">
+                            <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Client ID 客戶編號</label>
+                            <input type="text" id="clientId" list="clientHistory" required class="w-full bg-slate-50 border-0 rounded-xl p-3 focus:ring-2 focus:ring-blue-500" placeholder="點擊選擇或輸入...">
+                            <datalist id="clientHistory"></datalist>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Start 開始</label>
+                            <input type="time" id="startTime" required class="w-full bg-slate-50 border-0 rounded-xl p-3">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">End 結束</label>
+                            <input type="time" id="endTime" required class="w-full bg-slate-50 border-0 rounded-xl p-3">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-bold text-blue-500 mb-1 uppercase">Calculated Hours 小時數</label>
+                            <input type="text" id="hours" readonly class="w-full bg-blue-50 text-blue-700 font-black border-0 rounded-xl p-3 text-center text-lg">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="col-span-2">
+                            <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Case No. 案號</label>
+                            <input type="text" id="caseId" required class="w-full bg-slate-50 border-0 rounded-xl p-3">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Work Code</label>
+                            <select id="workCode" class="w-full bg-slate-50 border-0 rounded-xl p-3">
+                                <option value="D">D</option><option value="RW">RW</option><option value="CF">CF</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Type 類型</label>
+                            <select id="caseType" class="w-full bg-slate-50 border-0 rounded-xl p-3">
+                                <option>M&A</option><option>General Corporate</option><option>Corporate Financing</option>
+                                <option>Project Financing</option><option>Bond Issuance</option><option>Formosa Bond</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <textarea id="content" placeholder="工作內容紀錄..." rows="3" class="w-full bg-slate-50 border-0 rounded-xl p-3 focus:ring-2 focus:ring-blue-500"></textarea>
+                    
+                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 active:bg-blue-700 transition">
+                        儲存工作紀錄
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div id="tab-list" class="tab-content">
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="searchInput" placeholder="搜尋關鍵字..." class="flex-grow p-3 rounded-xl border-0 shadow-sm focus:ring-2 focus:ring-blue-500">
+                <button onclick="exportCSV()" class="bg-emerald-600 text-white p-3 rounded-xl shadow-sm flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    <span class="ml-1 text-xs font-bold">CSV</span>
+                </button>
+            </div>
+            <div id="logContainer" class="space-y-3"></div>
+        </div>
+
+        <div id="tab-chart" class="tab-content">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 mb-4">
+                <h3 class="text-xs font-bold text-slate-400 mb-4 uppercase tracking-wider text-center">Case Type Distribution 類型分佈</h3>
+                <div class="h-64"><canvas id="typeChart"></canvas></div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="text-xs font-bold text-slate-400 mb-4 uppercase tracking-wider text-center">Monthly Workload 每月時數</h3>
+                <div class="h-64"><canvas id="monthChart"></canvas></div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around py-3 px-4 shadow-2xl">
+        <button onclick="switchTab('form')" id="btn-form" class="flex flex-col items-center px-4 transition active-tab-btn">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            <span class="text-[10px] mt-1 font-bold">紀錄</span>
+        </button>
+        <button onclick="switchTab('list')" id="btn-list" class="flex flex-col items-center px-4 text-slate-400 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            <span class="text-[10px] mt-1 font-bold">清單</span>
+        </button>
+        <button onclick="switchTab('chart')" id="btn-chart" class="flex flex-col items-center px-4 text-slate-400 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            <span class="text-[10px] mt-1 font-bold">分析</span>
+        </button>
+    </div>
+
+    <script>
+        let logs = JSON.parse(localStorage.getItem('work_logs_v2') || '[]');
+        let clientHistory = JSON.parse(localStorage.getItem('clients_v2') || '[]');
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            ['form', 'list', 'chart'].forEach(id => {
+                const btn = document.getElementById('btn-' + id);
+                id === tabId ? btn.classList.add('active-tab-btn') : btn.classList.remove('active-tab-btn');
+            });
+            if (tabId === 'chart') renderCharts();
+            if (tabId === 'list') updateUI();
+        }
+
+        function calculate() {
+            const start = document.getElementById('startTime').value;
+            const end = document.getElementById('endTime').value;
+            if (start && end) {
+                const s = new Date(`2000-01-01T${start}`);
+                const e = new Date(`2000-01-01T${end}`);
+                let diff = (e - s) / 1000 / 60;
+                if (diff < 0) diff += 1440;
+                const hrs = Math.ceil(diff / 6) / 10;
+                document.getElementById('hours').value = hrs.toFixed(1);
+            }
+        }
+        document.getElementById('startTime').addEventListener('change', calculate);
+        document.getElementById('endTime').addEventListener('change', calculate);
+
+        document.getElementById('timeForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const log = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString('zh-TW'),
+                startTime: document.getElementById('startTime').value,
+                endTime: document.getElementById('endTime').value,
+                hours: parseFloat(document.getElementById('hours').value),
+                clientId: document.getElementById('clientId').value.trim(),
+                caseId: document.getElementById('caseId').value.trim(),
+                workCode: document.getElementById('workCode').value,
+                caseType: document.getElementById('caseType').value,
+                content: document.getElementById('content').value.trim()
+            };
+            logs.unshift(log);
+            if (log.clientId && !clientHistory.includes(log.clientId)) {
+                clientHistory.push(log.clientId);
+                localStorage.setItem('clients_v2', JSON.stringify(clientHistory));
+            }
+            localStorage.setItem('work_logs_v2', JSON.stringify(logs));
+            alert('紀錄已儲存！');
+            document.getElementById('timeForm').reset();
+            updateUI();
+        });
+
+        function deleteLog(id) {
+            if(confirm('確定刪除此紀錄？')) {
+                logs = logs.filter(l => l.id !== id);
+                localStorage.setItem('work_logs_v2', JSON.stringify(logs));
+                updateUI();
+            }
+        }
+
+        function updateUI() {
+            const container = document.getElementById('logContainer');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const todayStr = new Date().toLocaleDateString('zh-TW');
+            let todayTotal = 0;
+
+            const filtered = logs.filter(l => 
+                l.clientId.toLowerCase().includes(search) || 
+                l.caseId.toLowerCase().includes(search) ||
+                l.content.toLowerCase().includes(search)
+            );
+
+            container.innerHTML = filtered.length ? filtered.map(l => {
+                if (l.date === todayStr) todayTotal += l.hours;
+                return `
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-2">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="w-2/3">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">${l.date}</span>
+                            <h3 class="font-bold text-slate-800 text-base">${l.clientId}</h3>
+                            <p class="text-xs text-blue-600 font-medium">${l.caseId}</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xl font-black text-slate-900">${l.hours.toFixed(1)}</span>
+                            <p class="text-[9px] text-slate-400 font-bold tracking-tighter">${l.startTime}-${l.endTime}</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-slate-600 bg-slate-50 p-2 rounded-lg mb-2">${l.content || '無描述'}</p>
+                    <div class="flex justify-between items-center">
+                        <div class="space-x-1">
+                            <span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">${l.workCode}</span>
+                            <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold">${l.caseType}</span>
+                        </div>
+                        <button onclick="deleteLog(${l.id})" class="text-[10px] text-red-400 font-bold uppercase tracking-widest px-2">Delete</button>
+                    </div>
+                </div>`;
+            }).join('') : '<p class="text-center text-slate-400 py-10">尚無紀錄</p>';
+
+            document.getElementById('navDayTotal').innerText = todayTotal.toFixed(1);
+            document.getElementById('clientHistory').innerHTML = clientHistory.map(c => `<option value="${c}">`).join('');
+        }
+
+        function exportCSV() {
+            if (logs.length === 0) return alert('目前沒有任何紀錄可匯出');
+            let csv = "\uFEFF日期,開始時間,結束時間,小時數,客戶編號,案號,工作代號,案件類型,內容\n";
+            logs.forEach(l => {
+                csv += `${l.date},${l.startTime},${l.endTime},${l.hours},${l.clientId},${l.caseId},${l.workCode},${l.caseType},"${l.content.replace(/"/g, '""')}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `TimeLog_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        let typeChartInstance, monthChartInstance;
+        function renderCharts() {
+            const typeCtx = document.getElementById('typeChart').getContext('2d');
+            const monthCtx = document.getElementById('monthChart').getContext('2d');
+            const typeMap = {}; const monthMap = {};
+            logs.forEach(l => {
+                typeMap[l.caseType] = (typeMap[l.caseType] || 0) + l.hours;
+                const m = l.date.substring(0, 7);
+                monthMap[m] = (monthMap[m] || 0) + l.hours;
+            });
+            if(typeChartInstance) typeChartInstance.destroy();
+            if(monthChartInstance) monthChartInstance.destroy();
+            typeChartInstance = new Chart(typeCtx, {
+                type: 'doughnut',
+                data: { labels: Object.keys(typeMap), datasets: [{ data: Object.values(typeMap), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'] }] },
+                options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }
+            });
+            monthChartInstance = new Chart(monthCtx, {
+                type: 'bar',
+                data: { labels: Object.keys(monthMap).reverse(), datasets: [{ label: 'Hours', data: Object.values(monthMap).reverse(), backgroundColor: '#3b82f6', borderRadius: 5 }] },
+                options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        document.getElementById('searchInput').addEventListener('input', updateUI);
+        updateUI();
+    </script>
+</body>
+</html>
