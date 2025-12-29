@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>工作紀錄 Pro 互動分析版</title>
+    <title>工作紀錄 Pro 企業版</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -11,18 +11,38 @@
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f8fafc; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .active-tab-btn { color: #2563eb !important; border-top: 2px solid #2563eb; }
+        /* 強化版底部按鈕樣式 */
+        .nav-btn { 
+            transition: all 0.2s; 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100%;
+        }
+        .active-tab-btn { 
+            color: #2563eb !important; 
+            background-color: #eff6ff;
+            border-radius: 12px;
+        }
+        .active-tab-btn span { transform: scale(1.1); }
         input, select, textarea { font-size: 16px !important; }
         .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
         .modal-content { background: white; margin: 15% auto; padding: 24px; border-radius: 20px; width: 90%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .spinning { animation: spin 1s linear infinite; }
     </style>
 </head>
-<body class="pb-24">
-
-    <nav class="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
-        <div>
-            <h1 class="text-lg font-bold">工作紀錄系統</h1>
-            <p class="text-[10px] opacity-60">互動式分析模式</p>
+<body class="pb-32"> <nav class="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <button onclick="forceRefresh()" id="refreshBtn" class="bg-slate-800 p-2 rounded-lg active:scale-90 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+            </button>
+            <div>
+                <h1 class="text-lg font-bold">工作紀錄系統</h1>
+                <p class="text-[10px] opacity-60">版本：v4.3 (按鈕加大版)</p>
+            </div>
         </div>
         <div class="text-right">
             <p class="text-xs opacity-70">今日累積</p>
@@ -31,28 +51,27 @@
     </nav>
 
     <div class="p-4 max-w-md mx-auto">
-        
         <div id="tab-form" class="tab-content active">
             <div id="topFrequency" class="mb-4 flex gap-2 overflow-x-auto pb-2 px-1"></div>
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                 <form id="timeForm" class="space-y-4">
                     <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label class="block text-[10px] font-bold text-slate-500 mb-1">CLIENT ID</label>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Client ID</label>
                             <input type="text" id="clientId" required class="w-full bg-slate-50 border-0 rounded-xl p-3 text-center text-sm font-mono" placeholder="代碼">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-slate-500 mb-1">CLIENT NAME</label>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Client Name</label>
                             <input type="text" id="clientName" class="w-full bg-slate-100 border-0 rounded-xl p-3 text-center text-sm text-slate-500" readonly placeholder="自動帶入">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label class="block text-[10px] font-bold text-slate-500 mb-1">CASE NO.</label>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Case No.</label>
                             <input type="text" id="caseId" required class="w-full bg-slate-50 border-0 rounded-xl p-3 text-center text-sm font-mono" placeholder="代碼">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-slate-500 mb-1">MATTER NAME</label>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Matter Name</label>
                             <input type="text" id="matterName" class="w-full bg-slate-100 border-0 rounded-xl p-3 text-center text-sm text-slate-500" readonly placeholder="自動帶入">
                         </div>
                     </div>
@@ -72,14 +91,14 @@
                         <input type="text" id="hours" readonly class="w-full bg-blue-100 text-blue-700 font-black border-0 rounded-xl p-3 text-center text-xl" value="0.0">
                     </div>
                     <div class="grid grid-cols-2 gap-3 text-sm">
-                        <select id="workCode" class="bg-slate-50 border-0 rounded-xl p-3 text-center"><option>D</option><option>RW</option><option>CF</option></select>
-                        <select id="caseType" class="bg-slate-50 border-0 rounded-xl p-3 text-center">
+                        <select id="workCode" class="bg-slate-50 border-0 rounded-xl p-3 text-center appearance-none"><option>D</option><option>RW</option><option>CF</option></select>
+                        <select id="caseType" class="bg-slate-50 border-0 rounded-xl p-3 text-center appearance-none">
                             <option>M&A</option><option>General Corporate</option><option>Corporate Financing</option><option>Project Financing</option>
                             <option>Bond Issuance</option><option>Formosa Bond</option><option>金融商品</option><option>PE Fund</option><option>其他</option>
                         </select>
                     </div>
-                    <textarea id="content" rows="2" class="w-full bg-slate-50 border-0 rounded-xl p-3 text-sm" placeholder="工作內容..."></textarea>
-                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg">儲存紀錄</button>
+                    <textarea id="content" rows="2" class="w-full bg-slate-50 border-0 rounded-xl p-3 text-sm" placeholder="工作內容詳細說明..."></textarea>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg active:scale-95">儲存紀錄</button>
                 </form>
             </div>
         </div>
@@ -92,16 +111,14 @@
                 </div>
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
                     <h3 class="text-xs font-bold text-slate-400 mb-2 text-center uppercase tracking-wider">Case Distribution</h3>
-                    <p class="text-[10px] text-slate-400 text-center mb-4">點擊下方圖表可展開案件清單</p>
+                    <p class="text-[10px] text-slate-400 text-center mb-4">點擊圓餅圖區塊展開清單</p>
                     <div class="h-64"><canvas id="pieChart"></canvas></div>
-                    
                     <div id="caseDetails" class="mt-6 hidden">
                         <div class="flex justify-between items-center border-b pb-2 mb-3">
                             <h4 id="detailTitle" class="text-sm font-bold text-blue-600">案件清單</h4>
-                            <button onclick="document.getElementById('caseDetails').classList.add('hidden')" class="text-slate-300 text-xs">關閉</button>
+                            <button onclick="document.getElementById('caseDetails').classList.add('hidden')" class="text-slate-300 text-xs font-bold">✕ 關閉</button>
                         </div>
-                        <div id="detailList" class="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2">
-                            </div>
+                        <div id="detailList" class="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-1"></div>
                     </div>
                 </div>
             </div>
@@ -118,7 +135,10 @@
                     <input type="text" id="qClient" placeholder="客戶ID" class="bg-slate-50 p-2 rounded-lg text-xs text-center border">
                     <input type="text" id="qCase" placeholder="案號" class="bg-slate-50 p-2 rounded-lg text-xs text-center border">
                 </div>
-                <button onclick="updateUI()" class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold">執行搜尋</button>
+                <div class="flex gap-2">
+                    <button onclick="updateUI()" class="flex-grow bg-slate-800 text-white py-2 rounded-xl text-xs font-bold">執行搜尋</button>
+                    <button onclick="exportCSV()" class="bg-emerald-600 text-white px-4 rounded-xl font-bold text-xs">CSV</button>
+                </div>
             </div>
             <div id="logContainer" class="space-y-3"></div>
         </div>
@@ -133,15 +153,29 @@
         </div>
     </div>
 
-    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around py-3 shadow-lg z-50">
-        <button onclick="switchTab('form')" id="btn-form" class="flex flex-col items-center px-6 active-tab-btn"><span class="text-[10px] font-bold">紀錄</span></button>
-        <button onclick="switchTab('analysis')" id="btn-analysis" class="flex flex-col items-center px-6 text-slate-400"><span class="text-[10px] font-bold">分析</span></button>
-        <button onclick="switchTab('list')" id="btn-list" class="flex flex-col items-center px-6 text-slate-400"><span class="text-[10px] font-bold">查詢/修改</span></button>
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-3 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-50 h-24">
+        <button onclick="switchTab('form')" id="btn-form" class="nav-btn active-tab-btn">
+            <span class="text-xs font-black uppercase tracking-widest">紀錄</span>
+            <div class="w-1 h-1 bg-blue-600 rounded-full mt-1 dot hidden"></div>
+        </button>
+        <button onclick="switchTab('analysis')" id="btn-analysis" class="nav-btn text-slate-400">
+            <span class="text-xs font-black uppercase tracking-widest">分析</span>
+        </button>
+        <button onclick="switchTab('list')" id="btn-list" class="nav-btn text-slate-400">
+            <span class="text-xs font-black uppercase tracking-widest">查詢</span>
+        </button>
     </div>
 
     <script>
         const DB_KEY = 'work_logs_final';
         const META_KEY = 'meta_data_v4';
+
+        function forceRefresh() {
+            const btn = document.getElementById('refreshBtn');
+            btn.classList.add('spinning');
+            const newUrl = window.location.href.split('?')[0] + '?t=' + new Date().getTime();
+            setTimeout(() => { window.location.replace(newUrl); }, 500);
+        }
 
         function getLogs() {
             let data = JSON.parse(localStorage.getItem(DB_KEY) || '[]');
@@ -190,7 +224,7 @@
 
         function openModal(type, id) {
             currentModalTarget = { type, id };
-            document.getElementById('modalHint').innerHTML = `偵測到新代碼 <b class="text-blue-600">${id}</b>。<br>請輸入對應名稱以便自動帶入：`;
+            document.getElementById('modalHint').innerHTML = `偵測到新代碼 <b class="text-blue-600">${id}</b>。<br>請輸入對應名稱：`;
             document.getElementById('nameModal').style.display = 'block';
         }
 
@@ -221,7 +255,7 @@
             if(top3.length === 0) { container.innerHTML = ""; return; }
             container.innerHTML = top3.map(([key]) => {
                 const [cid, mid] = key.split('|');
-                return `<div onclick="applyQuick('${cid}','${mid}')" class="bg-blue-600 text-white text-[10px] px-3 py-2 rounded-xl whitespace-nowrap shadow-sm active:scale-90 transition">🔥 ${cid} / ${mid}</div>`;
+                return `<div onclick="applyQuick('${cid}','${mid}')" class="bg-blue-600 text-white text-[10px] px-4 py-3 rounded-xl whitespace-nowrap shadow-sm active:scale-90 transition font-bold">🔥 ${cid} / ${mid}</div>`;
             }).join('');
         }
 
@@ -321,8 +355,13 @@
         function switchTab(t) {
             document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
             document.getElementById('tab-' + t).classList.add('active');
-            document.querySelectorAll('button[id^="btn-"]').forEach(b => b.classList.remove('active-tab-btn'));
-            document.getElementById('btn-' + t).classList.add('active-tab-btn');
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('active-tab-btn');
+                b.classList.add('text-slate-400');
+            });
+            const activeBtn = document.getElementById('btn-' + t);
+            activeBtn.classList.add('active-tab-btn');
+            activeBtn.classList.remove('text-slate-400');
             if(t === 'analysis') renderCharts();
             updateUI();
         }
@@ -331,12 +370,10 @@
             if(confirm('確定刪除？')) { logs = logs.filter(l => l.id !== id); localStorage.setItem(DB_KEY, JSON.stringify(logs)); updateUI(); }
         }
 
-        // --- 分析頁面：圖表與互動清單邏輯 ---
         function renderCharts() {
             if (pieChart) pieChart.destroy(); if (barChart) barChart.destroy();
             const caseMap = {}; logs.forEach(l => { if(l.cn) caseMap[l.cn] = l.ct; });
             const typeCounts = {}; Object.values(caseMap).forEach(t => typeCounts[t] = (typeCounts[t]||0)+1);
-            
             pieChart = new Chart(document.getElementById('pieChart'), {
                 type: 'pie',
                 data: {
@@ -344,19 +381,13 @@
                     datasets: [{ data: Object.values(typeCounts), backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#64748b'] }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
                     onClick: (evt, elements) => {
-                        if (elements.length > 0) {
-                            const index = elements[0].index;
-                            const label = pieChart.data.labels[index];
-                            showCategoryDetails(label);
-                        }
+                        if (elements.length > 0) showCategoryDetails(pieChart.data.labels[elements[0].index]);
                     },
                     plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
                 }
             });
-
             const monthData = {}; logs.forEach(l => { const m = l.sd.substring(0, 7); monthData[m] = (monthData[m]||0)+l.h; });
             const sorted = Object.keys(monthData).sort();
             barChart = new Chart(document.getElementById('barChart'), {
@@ -366,41 +397,33 @@
             });
         }
 
-        // 顯示該類別的所有客戶與案號
         function showCategoryDetails(category) {
             const detailsDiv = document.getElementById('caseDetails');
             const listDiv = document.getElementById('detailList');
-            const titleSpan = document.getElementById('detailTitle');
-            
-            // 找出該類別的所有不重複案件
             const uniqueCases = new Set();
-            logs.filter(l => l.ct === category).forEach(l => {
-                uniqueCases.add(`${l.c} | ${l.cn}`);
-            });
-
-            titleSpan.innerText = `${category} 案號清單 (${uniqueCases.size})`;
+            logs.filter(l => l.ct === category).forEach(l => uniqueCases.add(`${l.c} | ${l.cn}`));
+            document.getElementById('detailTitle').innerText = `${category} (${uniqueCases.size})`;
             listDiv.innerHTML = Array.from(uniqueCases).map(item => {
                 const [cid, mid] = item.split(' | ');
-                return `
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center shadow-sm">
-                        <div>
-                            <p class="text-[10px] font-bold text-slate-400">CLIENT: ${cid}</p>
-                            <p class="text-xs font-bold text-slate-700">${mid}</p>
-                        </div>
-                        <div class="text-[10px] text-slate-400">${meta.cases[mid] || ''}</div>
-                    </div>
-                `;
+                return `<div class="bg-slate-50 p-4 rounded-xl border flex justify-between items-center"><div class="text-[10px] font-bold text-slate-400 uppercase">ID: ${cid}<br><span class="text-xs text-slate-700">${mid}</span></div><div class="text-[10px] text-slate-400 font-bold">${meta.cases[mid] || ''}</div></div>`;
             }).join('');
-
             detailsDiv.classList.remove('hidden');
-            // 平滑捲動到底部清單
             detailsDiv.scrollIntoView({ behavior: 'smooth' });
         }
 
-        function clearSearch() {
-            ['qStart','qEnd','qClient','qCase'].forEach(id => document.getElementById(id).value = '');
-            updateUI();
+        function exportCSV() {
+            let csv = "\uFEFF開始日期,結束日期,客戶ID,客戶名稱,案號,案件名稱,小時,WorkCode,類別,內容\n";
+            logs.forEach(l => {
+                csv += `${l.sd},${l.ed},${l.c},${meta.clients[l.c]||''},${l.cn},${meta.cases[l.cn]||''},${l.h},${l.wc},${l.ct},"${(l.desc||'').replace(/"/g,'""')}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `WorkLog_Backup.csv`;
+            link.click();
         }
+
+        function clearSearch() { ['qStart','qEnd','qClient','qCase'].forEach(id => document.getElementById(id).value = ''); updateUI(); }
 
         init();
     </script>
