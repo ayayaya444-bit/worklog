@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>工作紀錄 Pro | v5.6</title>
+    <title>工作紀錄 Pro | v5.8</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -57,10 +57,10 @@
     <nav class="bg-slate-900 text-white p-5 sticky top-0 z-50 flex justify-between items-center shadow-lg">
         <div class="flex items-center gap-3">
             <button onclick="location.reload()" class="bg-slate-800 p-2.5 rounded-xl border border-white/5"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button>
-            <div><h1 class="text-md font-extrabold tracking-tight">紀錄系統</h1><p class="text-[9px] font-bold text-blue-400 uppercase">v5.6 Drill-Down</p></div>
+            <div><h1 class="text-md font-extrabold tracking-tight">紀錄系統</h1><p class="text-[9px] font-bold text-blue-400 uppercase">v5.8 Matter Analysis</p></div>
         </div>
         <div class="bg-blue-600/20 border border-blue-500/30 px-4 py-1.5 rounded-2xl text-right">
-            <p class="text-[9px] font-black text-blue-400 uppercase leading-none mb-1">Today Total</p>
+            <p class="text-[9px] font-black text-blue-400 uppercase mb-1">Today Total</p>
             <p class="text-xl font-black font-mono text-white" id="navDayTotal">0.0</p>
         </div>
     </nav>
@@ -97,14 +97,14 @@
             <div class="space-y-4">
                 <div class="bg-white p-5 rounded-[2rem] border border-slate-200 h-48"><canvas id="barChart"></canvas></div>
                 <div class="bg-white p-5 rounded-[2rem] border border-slate-200">
-                    <div class="text-center mb-2"><p class="text-[10px] font-black text-slate-400 uppercase">Category Distribution</p><p class="text-[8px] text-blue-500 font-bold">點擊圓餅圖查看案號明細</p></div>
+                    <div class="text-center mb-2">
+                        <p class="text-[10px] font-black text-slate-400 uppercase">Case Count by Category</p>
+                        <p class="text-[8px] text-blue-500 font-bold uppercase tracking-tight">圓餅圖以案號數量統計</p>
+                    </div>
                     <div class="h-64"><canvas id="pieChart"></canvas></div>
                 </div>
                 <div id="drillDownArea" class="hidden animate-fadeIn space-y-3">
-                    <div class="flex justify-between items-end px-2">
-                        <h2 id="drillDownTitle" class="text-lg font-black text-slate-800">類別明細</h2>
-                        <button onclick="document.getElementById('drillDownArea').classList.add('hidden')" class="text-[10px] font-bold text-slate-400">CLOSE</button>
-                    </div>
+                    <div class="flex justify-between items-end px-2"><h2 id="drillDownTitle" class="text-lg font-black text-slate-800">類別明細</h2><button onclick="document.getElementById('drillDownArea').classList.add('hidden')" class="text-[10px] font-bold text-slate-400">CLOSE</button></div>
                     <div id="drillDownList" class="space-y-2 pb-10"></div>
                 </div>
             </div>
@@ -145,79 +145,103 @@
             updateUI(); 
         }
 
-        // --- 核心功能：分析頁面點擊下鑽 ---
-        function showCategoryDetails(categoryName) {
-            const area = document.getElementById('drillDownArea');
-            const list = document.getElementById('drillDownList');
-            const title = document.getElementById('drillDownTitle');
-            
-            // 過濾該類別的所有紀錄
-            const filteredLogs = logs.filter(l => l.ct === categoryName);
-            
-            // 依案號分組計算總時數
-            const caseStats = {};
-            filteredLogs.forEach(l => {
-                const key = l.cn;
-                if (!caseStats[key]) caseStats[key] = { hours: 0, client: l.c };
-                caseStats[key].hours += l.h;
-            });
-
-            title.innerText = categoryName;
-            list.innerHTML = Object.entries(caseStats).sort((a,b) => b[1].hours - a[1].hours).map(([caseNo, data]) => `
-                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
-                    <div>
-                        <p class="text-[8px] font-black text-slate-400 uppercase tracking-tighter">${data.client} (${meta.clients[data.client] || 'N/A'})</p>
-                        <h3 class="font-bold text-slate-800 text-xs">${caseNo}</h3>
-                        <p class="text-[10px] text-blue-500 font-bold">${meta.cases[caseNo] || ''}</p>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-lg font-black font-mono text-slate-900">${data.hours.toFixed(1)}</span>
-                        <span class="text-[8px] font-bold text-slate-300">HRS</span>
-                    </div>
-                </div>
-            `).join('');
-
-            area.classList.remove('hidden');
-            area.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
+        // --- Analysis 核心邏輯更新：改用案號數量統計 ---
         function renderCharts() {
             if (pChart) pChart.destroy(); if (bChart) bChart.destroy();
             
-            // 圓餅圖數據
-            const tc = {}; logs.forEach(l => tc[l.ct] = (tc[l.ct]||0) + l.h);
-            const labels = Object.keys(tc);
+            // 圓餅圖：計算每個類別中的不重複案號數量
+            const categoryMatterMap = {}; // { "M&A": Set(案號1, 案號2), ... }
+            
+            logs.forEach(l => {
+                if (!categoryMatterMap[l.ct]) {
+                    categoryMatterMap[l.ct] = new Set();
+                }
+                categoryMatterMap[l.ct].add(l.cn);
+            });
+
+            const labels = Object.keys(categoryMatterMap);
+            const matterCounts = labels.map(label => categoryMatterMap[label].size);
             
             pChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
                 type: 'doughnut',
                 data: {
                     labels: labels,
-                    datasets: [{ data: Object.values(tc), backgroundColor: ['#3b82f6','#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'] }]
+                    datasets: [{ 
+                        data: matterCounts, 
+                        backgroundColor: ['#3b82f6','#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'] 
+                    }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    onClick: (evt, elements) => {
-                        if (elements.length > 0) {
-                            const index = elements[0].index;
-                            showCategoryDetails(labels[index]);
+                    onClick: (e, el) => { if(el.length) showCategoryDetails(labels[el[0].index]); },
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10, weight: 'bold' } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${context.raw} 個案號`;
+                                }
+                            }
                         }
-                    },
-                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10, weight: 'bold' } } } }
+                    }
                 }
             });
 
-            // 柱狀圖數據 (月度統計)
+            // 柱狀圖：維持時數統計
             const md = {}; logs.forEach(l => { const m = l.sd.substring(0, 7); md[m] = (md[m]||0)+l.h; });
-            const sortedMonths = Object.keys(md).sort();
+            const sorted = Object.keys(md).sort();
             bChart = new Chart(document.getElementById('barChart').getContext('2d'), {
-                type: 'bar',
-                data: { labels: sortedMonths, datasets: [{ label: 'Hours', data: sortedMonths.map(m=>md[m]), backgroundColor: '#3b82f6', borderRadius: 8 }] },
+                type: 'bar', data: { labels: sorted, datasets: [{ data: sorted.map(m=>md[m]), backgroundColor: '#3b82f6', borderRadius: 8 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
 
-        // --- 穩定功能 (ID 管理, 刪除, 學習等) ---
-        function deleteLog(id) { if (confirm("確定刪除？")) { logs = logs.filter(l => l.id !== id); localStorage.setItem(DB_KEY, JSON.stringify(logs)); updateUI(); } }
+        function showCategoryDetails(cat) {
+            const area = document.getElementById('drillDownArea'), list = document.getElementById('drillDownList'), title = document.getElementById('drillDownTitle');
+            const filtered = logs.filter(l => l.ct === cat);
+            const stats = {}; filtered.forEach(l => { if(!stats[l.cn]) stats[l.cn] = {h:0, c:l.c}; stats[l.cn].h += l.h; });
+            title.innerText = cat;
+            list.innerHTML = Object.entries(stats).sort((a,b)=>b[1].h-a[1].h).map(([cn, d]) => `
+                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
+                    <div><p class="text-[8px] font-black text-slate-400 uppercase">${d.c}</p><h3 class="font-bold text-slate-800 text-xs">${cn}</h3><p class="text-[10px] text-blue-500 font-bold">${meta.cases[cn] || ''}</p></div>
+                    <div class="text-right"><span class="text-lg font-black font-mono text-slate-900">${d.h.toFixed(1)}</span><p class="text-[7px] font-black text-slate-300 uppercase leading-none">Total Hrs</p></div>
+                </div>
+            `).join('');
+            area.classList.remove('hidden'); area.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // --- Vault 介面更新：顯示工作內容 ---
+        function updateUI() {
+            const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '/');
+            document.getElementById('navDayTotal').innerText = logs.filter(l => l.sd === todayStr).reduce((a, b) => a + b.h, 0).toFixed(1);
+            const container = document.getElementById('logContainer');
+            const qs = document.getElementById('qStart').value.replace(/-/g, '/'), qe = document.getElementById('qEnd').value.replace(/-/g, '/');
+            const qc = document.getElementById('qClient').value.trim().toUpperCase(), qn = document.getElementById('qCase').value.trim().toUpperCase();
+            const filtered = logs.filter(l => (!qs || l.sd >= qs) && (!qe || l.sd <= qe) && (!qc || l.c.toUpperCase().includes(qc)) && (!qn || l.cn.toUpperCase().includes(qn)));
+
+            container.innerHTML = filtered.map(l => `
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-fadeIn">
+                    <div class="p-4 flex justify-between items-start">
+                        <div class="flex-grow pr-2">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[9px] text-blue-600 font-black px-2 py-0.5 bg-blue-50 rounded-md">${l.sd}</span>
+                                <span class="text-[9px] text-slate-300 font-bold font-mono uppercase">${l.wc} / ${l.ct}</span>
+                            </div>
+                            <h3 class="font-extrabold text-slate-800 text-[11px] leading-tight">${l.c} <span class="text-slate-400 font-medium">(${meta.clients[l.c] || 'N/A'})</span></h3>
+                            <p class="text-[10px] text-blue-500 font-black mt-0.5">${l.cn} <span class="text-slate-400 font-bold ml-1">${meta.cases[l.cn] || ''}</span></p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="text-right"><p class="text-lg font-black font-mono text-slate-900 leading-none">${l.h.toFixed(1)}</p><p class="text-[7px] font-black text-slate-300 uppercase">Hours</p></div>
+                            <button onclick="deleteLog(${l.id})" class="text-red-100 hover:text-red-400 transition-colors ml-2"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7M4 7h16"/></svg></button>
+                        </div>
+                    </div>
+                    ${l.desc ? `<div class="px-4 pb-3"><div class="bg-slate-50/80 rounded-xl p-2.5 border border-slate-100/50"><p class="text-[10px] text-slate-500 font-medium leading-relaxed italic">"${l.desc}"</p></div></div>` : ''}
+                </div>
+            `).join('');
+            renderTopThree();
+        }
+
+        // --- 其他 ID 管理、刪除、學習邏輯 ---
         function openIdManager() { document.getElementById('idManagerModal').style.display = 'flex'; renderIdList(); }
         function closeIdManager() { document.getElementById('idManagerModal').style.display = 'none'; }
         function switchManageTab(t) { currentManageTab = t; renderIdList(); }
@@ -231,46 +255,19 @@
             `).join('');
         }
         function deleteIdEntry(id) { if (confirm(`刪除 "${id}"？`)) { if (currentManageTab === 'client') delete meta.clients[id]; else delete meta.cases[id]; localStorage.setItem(META_KEY, JSON.stringify(meta)); renderIdList(); } }
+        function deleteLog(id) { if (confirm("確定刪除？")) { logs = logs.filter(l => l.id !== id); localStorage.setItem(DB_KEY, JSON.stringify(logs)); updateUI(); if(document.getElementById('tab-analysis').classList.contains('active')) renderCharts(); } }
         
         function checkAndLearn(type) {
             const idVal = document.getElementById(type === 'client' ? 'clientId' : 'caseId').value.trim();
-            if (!idVal) return;
-            if (!(type === 'client' ? meta.clients[idVal] : meta.cases[idVal])) {
-                learningType = type;
-                document.getElementById('modalTitle').innerText = type === 'client' ? '新 Client 名稱' : '新 Matter 名稱';
-                document.getElementById('modalSubtitle').innerText = `ID: ${idVal}`;
-                document.getElementById('modalInput').value = '';
-                document.getElementById('learningModal').style.display = 'flex';
-                setTimeout(() => document.getElementById('modalInput').focus(), 100);
-            }
+            if (!idVal || (type === 'client' ? meta.clients[idVal] : meta.cases[idVal])) return;
+            learningType = type; document.getElementById('modalTitle').innerText = `新 ${type.toUpperCase()} 名稱`;
+            document.getElementById('modalSubtitle').innerText = `ID: ${idVal}`; document.getElementById('modalInput').value = '';
+            document.getElementById('learningModal').style.display = 'flex'; setTimeout(() => document.getElementById('modalInput').focus(), 100);
         }
         function confirmLearning() {
-            const name = document.getElementById('modalInput').value.trim(); const id = document.getElementById(learningType === 'client' ? 'clientId' : 'caseId').value.trim();
+            const name = document.getElementById('modalInput').value.trim(), id = document.getElementById(learningType === 'client' ? 'clientId' : 'caseId').value.trim();
             if (name) { if (learningType === 'client') meta.clients[id] = name; else meta.cases[id] = name; localStorage.setItem(META_KEY, JSON.stringify(meta)); }
             document.getElementById('learningModal').style.display = 'none';
-        }
-
-        function updateUI() {
-            const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '/');
-            document.getElementById('navDayTotal').innerText = logs.filter(l => l.sd === todayStr).reduce((a, b) => a + b.h, 0).toFixed(1);
-            const container = document.getElementById('logContainer');
-            const qs = document.getElementById('qStart').value.replace(/-/g, '/'), qe = document.getElementById('qEnd').value.replace(/-/g, '/');
-            const qc = document.getElementById('qClient').value.trim().toUpperCase(), qn = document.getElementById('qCase').value.trim().toUpperCase();
-            const filtered = logs.filter(l => (!qs || l.sd >= qs) && (!qe || l.sd <= qe) && (!qc || l.c.toUpperCase().includes(qc)) && (!qn || l.cn.toUpperCase().includes(qn)));
-            container.innerHTML = filtered.map(l => `
-                <div class="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
-                    <div class="flex-grow pr-2">
-                        <span class="text-[9px] text-blue-600 font-black px-2 py-0.5 bg-blue-50 rounded-md">${l.sd}</span>
-                        <h3 class="font-bold text-slate-800 text-xs mt-1">${l.c} <span class="text-slate-400 font-normal">(${meta.clients[l.c] || 'N/A'})</span></h3>
-                        <p class="text-[10px] text-blue-500 font-black">${l.cn} <span class="text-slate-400 font-bold ml-1">${meta.cases[l.cn] || ''}</span></p>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <div class="text-right"><p class="text-xl font-black font-mono">${l.h.toFixed(1)}</p></div>
-                        <button onclick="deleteLog(${l.id})" class="text-red-300"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7M4 7h16"/></svg></button>
-                    </div>
-                </div>
-            `).join('');
-            renderTopThree();
         }
 
         function switchTab(t) {
