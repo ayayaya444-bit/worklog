@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>工作紀錄 Pro | v5.1</title>
+    <title>工作紀錄 Pro | v5.2</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -21,9 +21,24 @@
         .active-tab-btn::after { content: ''; position: absolute; bottom: 12px; width: 4px; height: 4px; background: #2563eb; border-radius: 50%; }
         input, select, textarea { font-size: 16px !important; border: 1px solid #e2e8f0 !important; border-radius: 0.75rem; }
         .content-container { padding-bottom: calc(100px + var(--safe-area-inset-bottom)); }
+        /* 彈出視窗樣式 */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .modal-card { background: white; border-radius: 2rem; width: 100%; max-width: 320px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body class="content-container">
+
+    <div id="learningModal" class="modal-overlay">
+        <div class="modal-card space-y-4">
+            <div class="text-center">
+                <span class="bg-blue-100 text-blue-600 text-[10px] font-black px-3 py-1 rounded-full uppercase">New Discovery</span>
+                <h2 class="text-lg font-extrabold text-slate-800 mt-2" id="modalTitle">輸入名稱</h2>
+                <p class="text-xs text-slate-400" id="modalSubtitle">系統將記住此 ID 供日後自動填寫</p>
+            </div>
+            <input type="text" id="modalInput" class="w-full bg-slate-50 p-4 text-center font-bold text-slate-700 focus:ring-2 ring-blue-500 outline-none" placeholder="請輸入名稱...">
+            <button onclick="confirmLearning()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg">Confirm</button>
+        </div>
+    </div>
 
     <nav class="bg-slate-900 text-white p-5 sticky top-0 z-50 flex justify-between items-center shadow-lg">
         <div class="flex items-center gap-3">
@@ -31,8 +46,8 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
             </button>
             <div>
-                <h1 class="text-md font-extrabold tracking-tight text-blue-50">紀錄系統</h1>
-                <p class="text-[9px] font-bold opacity-50 uppercase tracking-widest text-blue-400">v5.1 Enhanced Vault</p>
+                <h1 class="text-md font-extrabold tracking-tight">紀錄系統</h1>
+                <p class="text-[9px] font-bold opacity-50 uppercase tracking-widest text-blue-400">v5.2 Smart Search</p>
             </div>
         </div>
         <div class="bg-blue-600/20 border border-blue-500/30 px-4 py-1.5 rounded-2xl text-right">
@@ -50,11 +65,11 @@
             <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-200">
                 <form id="timeForm" class="space-y-4">
                     <div class="grid grid-cols-2 gap-3">
-                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Client ID</label><input type="text" id="clientId" required class="w-full bg-slate-50 p-3 text-center text-sm font-bold font-mono" placeholder="ID"></div>
+                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Client ID</label><input type="text" id="clientId" required class="w-full bg-slate-50 p-3 text-center text-sm font-bold font-mono" placeholder="ID" onblur="checkAndLearn('client')"></div>
                         <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Client Name</label><input type="text" id="clientName" class="w-full bg-slate-100 p-3 text-center text-sm text-slate-400" readonly></div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
-                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Case No.</label><input type="text" id="caseId" required class="w-full bg-slate-50 p-3 text-center text-sm font-bold font-mono" placeholder="NO."></div>
+                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Case No.</label><input type="text" id="caseId" required class="w-full bg-slate-50 p-3 text-center text-sm font-bold font-mono" placeholder="NO." onblur="checkAndLearn('case')"></div>
                         <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Matter Name</label><input type="text" id="matterName" class="w-full bg-slate-100 p-3 text-center text-sm text-slate-400" readonly></div>
                     </div>
                     <div class="grid grid-cols-2 gap-3 text-center">
@@ -81,9 +96,16 @@
 
         <div id="tab-list" class="tab-content">
             <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-200 mb-4 space-y-3">
-                <div class="grid grid-cols-2 gap-2"><input type="date" id="qStart" class="bg-slate-50 p-2 text-[10px] text-center font-bold"><input type="date" id="qEnd" class="bg-slate-50 p-2 text-[10px] text-center font-bold"></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="date" id="qStart" class="bg-slate-50 p-2 text-[10px] text-center font-bold" onchange="updateUI()">
+                    <input type="date" id="qEnd" class="bg-slate-50 p-2 text-[10px] text-center font-bold" onchange="updateUI()">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="qClient" placeholder="Search Client ID" class="bg-slate-50 p-2 text-[10px] text-center font-bold uppercase" oninput="updateUI()">
+                    <input type="text" id="qCase" placeholder="Search Case No." class="bg-slate-50 p-2 text-[10px] text-center font-bold uppercase" oninput="updateUI()">
+                </div>
                 <div class="flex gap-2">
-                    <button onclick="updateUI()" class="flex-grow bg-slate-900 text-white py-2.5 rounded-xl text-xs font-black uppercase tracking-widest">Filter</button>
+                    <button onclick="updateUI()" class="flex-grow bg-slate-900 text-white py-2.5 rounded-xl text-xs font-black uppercase tracking-widest">Refresh</button>
                     <button onclick="exportCSV()" class="bg-emerald-600 text-white px-3 rounded-xl font-bold text-[10px]">EXPORT</button>
                     <label class="bg-blue-600 text-white px-3 rounded-xl font-bold text-[10px] flex items-center cursor-pointer">IMPORT<input type="file" accept=".csv" class="hidden" onchange="importCSV(this)"></label>
                 </div>
@@ -103,30 +125,70 @@
         let logs = JSON.parse(localStorage.getItem(DB_KEY) || '[]');
         let meta = JSON.parse(localStorage.getItem(META_KEY) || '{"clients":{}, "cases":{}}');
         let pieChart, barChart;
+        let learningType = ''; // 'client' or 'case'
 
         function init() { 
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('startDate').value = today; document.getElementById('endDate').value = today;
             updateUI(); 
-            // 接回自動對應監聽器
-            document.getElementById('clientId').addEventListener('input', function() {
-                document.getElementById('clientName').value = meta.clients[this.value] || "";
-            });
-            document.getElementById('caseId').addEventListener('input', function() {
-                document.getElementById('matterName').value = meta.cases[this.value] || "";
-            });
+            // 即時帶出已知名稱
+            document.getElementById('clientId').addEventListener('input', function() { document.getElementById('clientName').value = meta.clients[this.value] || ""; });
+            document.getElementById('caseId').addEventListener('input', function() { document.getElementById('matterName').value = meta.cases[this.value] || ""; });
         }
 
-        // --- 核心：Vault 顯示邏輯更新 ---
+        // --- 核心：智慧學習名稱 ---
+        function checkAndLearn(type) {
+            const idValue = document.getElementById(type === 'client' ? 'clientId' : 'caseId').value.trim();
+            if (!idValue) return;
+
+            const existingName = type === 'client' ? meta.clients[idValue] : meta.cases[idValue];
+            
+            if (!existingName) {
+                learningType = type;
+                document.getElementById('modalTitle').innerText = type === 'client' ? '輸入 Client 名稱' : '輸入 Matter 名稱';
+                document.getElementById('modalSubtitle').innerText = `ID: ${idValue}`;
+                document.getElementById('modalInput').value = '';
+                document.getElementById('learningModal').style.display = 'flex';
+                setTimeout(() => document.getElementById('modalInput').focus(), 100);
+            }
+        }
+
+        function confirmLearning() {
+            const nameValue = document.getElementById('modalInput').value.trim();
+            const idValue = document.getElementById(learningType === 'client' ? 'clientId' : 'caseId').value.trim();
+            
+            if (nameValue) {
+                if (learningType === 'client') {
+                    meta.clients[idValue] = nameValue;
+                    document.getElementById('clientName').value = nameValue;
+                } else {
+                    meta.cases[idValue] = nameValue;
+                    document.getElementById('matterName').value = nameValue;
+                }
+                localStorage.setItem(META_KEY, JSON.stringify(meta));
+            }
+            document.getElementById('learningModal').style.display = 'none';
+        }
+
+        // --- 核心：Vault 搜尋與顯示邏輯 ---
         function updateUI() {
             const container = document.getElementById('logContainer');
             const today = new Date().toISOString().split('T')[0].replace(/-/g, '/');
             const dayTotal = logs.filter(l => l.sd === today).reduce((a, b) => a + b.h, 0);
             document.getElementById('navDayTotal').innerText = dayTotal.toFixed(1);
 
+            // 搜尋條件
             const qs = document.getElementById('qStart').value.replace(/-/g, '/');
             const qe = document.getElementById('qEnd').value.replace(/-/g, '/');
-            const filtered = logs.filter(l => (!qs || l.sd >= qs) && (!qe || l.sd <= qe));
+            const qc = document.getElementById('qClient').value.trim().toUpperCase();
+            const qn = document.getElementById('qCase').value.trim().toUpperCase();
+
+            const filtered = logs.filter(l => {
+                const matchDate = (!qs || l.sd >= qs) && (!qe || l.sd <= qe);
+                const matchClient = !qc || l.c.toUpperCase().includes(qc);
+                const matchCase = !qn || l.cn.toUpperCase().includes(qn);
+                return matchDate && matchClient && matchCase;
+            });
 
             container.innerHTML = filtered.map(l => `
                 <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
@@ -135,28 +197,24 @@
                             <span class="text-[9px] text-blue-600 font-black px-2 py-0.5 bg-blue-50 rounded-md">${l.sd}</span>
                             <span class="text-[9px] text-slate-400 font-bold uppercase">${l.wc} / ${l.ct}</span>
                         </div>
-                        <h3 class="font-bold text-slate-800 text-xs truncate w-48">${l.c} <span class="text-slate-400 font-normal">(${meta.clients[l.c] || 'N/A'})</span></h3>
-                        <p class="text-[10px] text-blue-500 font-black mt-0.5">
-                            ${l.cn} <span class="text-slate-400 font-bold ml-1">${meta.cases[l.cn] || ''}</span>
-                        </p>
-                        <p class="text-[10px] text-slate-400 mt-1 line-clamp-1 italic">${l.desc || 'No content'}</p>
+                        <h3 class="font-bold text-slate-800 text-xs">${l.c} <span class="text-slate-400 font-normal">(${meta.clients[l.c] || 'N/A'})</span></h3>
+                        <p class="text-[10px] text-blue-500 font-black mt-0.5">${l.cn} <span class="text-slate-400 font-bold ml-1">${meta.cases[l.cn] || ''}</span></p>
                     </div>
                     <div class="text-right">
                         <p class="text-xl font-black font-mono text-slate-900">${l.h.toFixed(1)}</p>
-                        <p class="text-[8px] font-black text-slate-300 uppercase">Hours</p>
                     </div>
                 </div>
             `).join('');
             renderTopThree();
         }
 
+        // --- 其餘功能模組 ---
         function importCSV(input) {
             const file = input.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
                 const text = e.target.result;
                 const rows = text.split('\n').filter(r => r.trim() !== "").slice(1);
-                let count = 0;
                 rows.forEach(row => {
                     const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                     if (cols.length < 10) return;
@@ -166,12 +224,10 @@
                         logs.unshift({ id: Date.now()+Math.random(), sd, ed, s:"09:00", e:"10:00", h:parseFloat(h), c, cn, wc, ct, desc });
                         if(c && cName) meta.clients[c] = cName;
                         if(cn && mName) meta.cases[cn] = mName;
-                        count++;
                     }
                 });
                 localStorage.setItem(DB_KEY, JSON.stringify(logs));
                 localStorage.setItem(META_KEY, JSON.stringify(meta));
-                alert(`匯入成功！共 ${count} 筆新資料`);
                 updateUI();
             };
             reader.readAsText(file);
@@ -181,10 +237,7 @@
             let csv = "\uFEFF開始日期,結束日期,客戶ID,客戶名稱,案號,案件名稱,小時,WorkCode,類別,內容\n";
             logs.forEach(l => { csv += `${l.sd},${l.ed},${l.c},${meta.clients[l.c]||''},${l.cn},${meta.cases[l.cn]||''},${l.h},${l.wc},${l.ct},"${(l.desc||'').replace(/"/g,'""')}"\n`; });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = `WorkLog_Export.csv`;
-            a.click();
+            const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `WorkLog_Export.csv`; a.click();
         }
 
         function switchTab(t) {
@@ -198,23 +251,22 @@
 
         function renderCharts() {
             if (pieChart) pieChart.destroy(); if (barChart) barChart.destroy();
-            const typeCounts = {}; logs.forEach(l => { typeCounts[l.ct] = (typeCounts[l.ct]||0)+1; });
+            const tc = {}; logs.forEach(l => { tc[l.ct] = (tc[l.ct]||0)+1; });
             pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
-                type: 'doughnut', data: { labels: Object.keys(typeCounts), datasets: [{ data: Object.values(typeCounts), backgroundColor: ['#3b82f6','#6366f1','#10b981','#f59e0b','#ef4444'], borderWidth: 4 }] },
-                options: { responsive: true, maintainAspectRatio: false, onClick: (e, el) => { if(el.length) showDetails(pieChart.data.labels[el[0].index]); }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 10, weight: 'bold' } } } } }
+                type: 'doughnut', data: { labels: Object.keys(tc), datasets: [{ data: Object.values(tc), backgroundColor: ['#3b82f6','#6366f1','#10b981','#f59e0b','#ef4444'] }] },
+                options: { responsive: true, maintainAspectRatio: false, onClick: (e, el) => { if(el.length) showDetails(pieChart.data.labels[el[0].index]); } }
             });
-            const mData = {}; logs.forEach(l => { const m = l.sd.substring(0, 7); mData[m] = (mData[m]||0)+l.h; });
-            const sorted = Object.keys(mData).sort();
-            barChart = new Chart(document.getElementById('barChart').getContext('2d'), { type: 'bar', data: { labels: sorted, datasets: [{ label: 'Hrs', data: sorted.map(m=>mData[m]), backgroundColor: '#3b82f6', borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+            const md = {}; logs.forEach(l => { const m = l.sd.substring(0, 7); md[m] = (md[m]||0)+l.h; });
+            const sorted = Object.keys(md).sort();
+            barChart = new Chart(document.getElementById('barChart').getContext('2d'), { type: 'bar', data: { labels: sorted, datasets: [{ data: sorted.map(m=>md[m]), backgroundColor: '#3b82f6' }] }, options: { responsive: true, maintainAspectRatio: false } });
         }
 
         function showDetails(cat) {
-            const list = document.getElementById('detailList');
-            const unique = new Set();
+            const list = document.getElementById('detailList'); const unique = new Set();
             logs.filter(l => l.ct === cat).forEach(l => unique.add(`${l.c}|${l.cn}`));
             list.innerHTML = Array.from(unique).map(item => {
                 const [cid, mid] = item.split('|');
-                return `<div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center"><div><p class="text-[8px] font-black text-slate-400">${cid}</p><p class="text-xs font-extrabold text-slate-800">${mid}</p></div><p class="text-[9px] text-blue-600 font-bold">${meta.cases[mid] || ''}</p></div>`;
+                return `<div class="bg-slate-50 p-3 rounded-xl flex justify-between"><div><p class="text-[8px] text-slate-400">${cid}</p><p class="text-xs font-bold">${mid}</p></div><p class="text-[9px] text-blue-600">${meta.cases[mid] || ''}</p></div>`;
             }).join('');
             document.getElementById('caseDetails').classList.remove('hidden');
         }
@@ -242,10 +294,8 @@
             document.getElementById('topFrequency').innerHTML = top.map(([k]) => `<div onclick="applyQuick('${k.split('|')[0]}','${k.split('|')[1]}')" class="bg-blue-600 text-white text-[9px] px-4 py-2 rounded-full font-black">🔥 ${k.split('|')[1]}</div>`).join('');
         }
         function applyQuick(c, m) { 
-            document.getElementById('clientId').value = c; 
-            document.getElementById('caseId').value = m; 
-            document.getElementById('clientName').value = meta.clients[c] || "";
-            document.getElementById('matterName').value = meta.cases[m] || "";
+            document.getElementById('clientId').value = c; document.getElementById('caseId').value = m; 
+            document.getElementById('clientName').value = meta.clients[c] || ""; document.getElementById('matterName').value = meta.cases[m] || "";
             calc(); 
         }
         
