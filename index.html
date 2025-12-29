@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>工作紀錄 Pro 置中優化版</title>
+    <title>工作紀錄 Pro 企業版 (含資料搬家)</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -12,14 +12,9 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .active-tab-btn { color: #2563eb !important; border-top: 2px solid #2563eb; }
-        /* 強制日期與時間選取器在 iOS 上置中 */
-        input[type="date"], input[type="time"] {
-            text-align: center;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
         input, select, textarea { font-size: 16px !important; }
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
+        .modal-content { background: white; margin: 15% auto; padding: 24px; border-radius: 20px; width: 90%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body class="pb-24">
@@ -27,7 +22,7 @@
     <nav class="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
         <div>
             <h1 class="text-lg font-bold">工作紀錄系統</h1>
-            <p class="text-[10px] opacity-60">介面對齊優化完成</p>
+            <p class="text-[10px] opacity-60">智慧型資料搬家已啟動</p>
         </div>
         <div class="text-right">
             <p class="text-xs opacity-70">今日累積</p>
@@ -36,62 +31,61 @@
     </nav>
 
     <div class="p-4 max-w-md mx-auto">
+        
         <div id="tab-form" class="tab-content active">
+            <div id="topFrequency" class="mb-4 flex gap-2 overflow-x-auto pb-2 px-1"></div>
+
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                 <form id="timeForm" class="space-y-4">
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">CLIENT ID</label>
-                            <input type="text" id="clientId" list="clientHistory" required class="w-full bg-slate-50 border-0 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 text-center" placeholder="客戶編號">
-                            <datalist id="clientHistory"></datalist>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">CLIENT ID</label>
+                            <input type="text" id="clientId" required class="w-full bg-slate-50 border-0 rounded-xl p-3 text-center text-sm font-mono" placeholder="代碼">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">CASE NO.</label>
-                            <input type="text" id="caseId" required class="w-full bg-slate-50 border-0 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 text-center" placeholder="案號">
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">CLIENT NAME</label>
+                            <input type="text" id="clientName" class="w-full bg-slate-100 border-0 rounded-xl p-3 text-center text-sm text-slate-500" readonly placeholder="自動帶入">
                         </div>
                     </div>
 
-                    <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                        <label class="block text-xs font-bold text-blue-600 mb-2 text-center">START 開始時間</label>
-                        <div class="space-y-2">
-                            <input type="date" id="startDate" required class="w-full bg-white border-0 rounded-xl p-3 text-sm font-bold shadow-sm text-center">
-                            <input type="time" id="startTime" required class="w-full bg-white border-0 rounded-xl p-3 text-sm shadow-sm text-center">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">CASE NO.</label>
+                            <input type="text" id="caseId" required class="w-full bg-slate-50 border-0 rounded-xl p-3 text-center text-sm font-mono" placeholder="代碼">
                         </div>
-                    </div>
-
-                    <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
-                        <label class="block text-xs font-bold text-indigo-600 mb-2 text-center">END 結束時間</label>
-                        <div class="space-y-2">
-                            <input type="date" id="endDate" required class="w-full bg-white border-0 rounded-xl p-3 text-sm font-bold shadow-sm text-center">
-                            <input type="time" id="endTime" required class="w-full bg-white border-0 rounded-xl p-3 text-sm shadow-sm text-center">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">MATTER NAME</label>
+                            <input type="text" id="matterName" class="w-full bg-slate-100 border-0 rounded-xl p-3 text-center text-sm text-slate-500" readonly placeholder="自動帶入">
                         </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-1 text-center">TOTAL HOURS</label>
-                        <input type="text" id="hours" readonly class="w-full bg-blue-100 text-blue-700 font-black border-0 rounded-xl p-3 text-center text-xl">
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">WORK CODE</label>
-                            <select id="workCode" class="w-full bg-slate-50 border-0 rounded-xl p-3 text-sm text-center">
-                                <option value="D">D</option><option value="RW">RW</option><option value="CF">CF</option>
-                            </select>
+                        <div class="bg-blue-50 p-2 rounded-xl border border-blue-100">
+                            <label class="block text-[10px] font-bold text-blue-600 mb-1 text-center">START</label>
+                            <input type="date" id="startDate" class="w-full bg-white rounded-lg p-2 text-xs text-center mb-1">
+                            <input type="time" id="startTime" class="w-full bg-white rounded-lg p-2 text-xs text-center">
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">TYPE</label>
-                            <select id="caseType" class="w-full bg-slate-50 border-0 rounded-xl p-3 text-sm text-center">
-                                <option>M&A</option><option>General Corporate</option><option>Corporate Financing</option>
-                                <option>Project Financing</option><option>Bond Issuance</option><option>Formosa Bond</option>
-                                <option>金融商品</option><option>投信投顧</option><option>PE Fund</option>
-                                <option>金融機構併購</option><option>個人資料保護</option><option>其他</option>
-                            </select>
+                        <div class="bg-indigo-50 p-2 rounded-xl border border-indigo-100">
+                            <label class="block text-[10px] font-bold text-indigo-600 mb-1 text-center">END</label>
+                            <input type="date" id="endDate" class="w-full bg-white rounded-lg p-2 text-xs text-center mb-1">
+                            <input type="time" id="endTime" class="w-full bg-white rounded-lg p-2 text-xs text-center">
                         </div>
                     </div>
 
-                    <textarea id="content" rows="2" class="w-full bg-slate-50 border-0 rounded-xl p-3 text-sm" placeholder="工作內容..."></textarea>
-                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg active:scale-95 transition">儲存紀錄</button>
+                    <div class="flex items-center justify-center">
+                        <input type="text" id="hours" readonly class="w-full bg-blue-100 text-blue-700 font-black border-0 rounded-xl p-3 text-center text-xl" value="0.0">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <select id="workCode" class="bg-slate-50 border-0 rounded-xl p-3 text-center appearance-none"><option>D</option><option>RW</option><option>CF</option></select>
+                        <select id="caseType" class="bg-slate-50 border-0 rounded-xl p-3 text-center appearance-none">
+                            <option>M&A</option><option>General Corporate</option><option>Corporate Financing</option><option>Project Financing</option>
+                            <option>Bond Issuance</option><option>Formosa Bond</option><option>金融商品</option><option>PE Fund</option><option>其他</option>
+                        </select>
+                    </div>
+
+                    <textarea id="content" rows="2" class="w-full bg-slate-50 border-0 rounded-xl p-3 text-sm" placeholder="工作內容詳細說明..."></textarea>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg active:scale-95 transition">儲存工作紀錄</button>
                 </form>
             </div>
         </div>
@@ -99,65 +93,248 @@
         <div id="tab-analysis" class="tab-content">
             <div class="space-y-6">
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-                    <h3 class="text-sm font-bold text-slate-700 mb-4 text-center">每月總工時趨勢</h3>
+                    <h3 class="text-xs font-bold text-slate-400 mb-4 text-center uppercase tracking-wider">Monthly Trends</h3>
                     <div class="h-64"><canvas id="barChart"></canvas></div>
                 </div>
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-                    <h3 class="text-sm font-bold text-slate-700 mb-4 text-center">案件類型分佈</h3>
+                    <h3 class="text-xs font-bold text-slate-400 mb-4 text-center uppercase tracking-wider">Case Distribution</h3>
                     <div class="h-64"><canvas id="pieChart"></canvas></div>
                 </div>
             </div>
         </div>
 
         <div id="tab-list" class="tab-content">
-            <div class="flex gap-2 mb-4">
-                <input type="text" id="searchInput" placeholder="搜尋..." class="flex-grow p-3 rounded-xl border-0 shadow-sm text-sm">
-                <button onclick="exportCSV()" class="bg-emerald-600 text-white px-4 rounded-xl font-bold text-xs">CSV</button>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-4 space-y-3">
+                <div class="flex justify-between items-center"><p class="text-xs font-bold text-slate-500">進階查詢工具</p><button onclick="clearSearch()" class="text-[10px] text-blue-500">清除條件</button></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="date" id="qStart" class="bg-slate-50 p-2 rounded-lg text-xs text-center border">
+                    <input type="date" id="qEnd" class="bg-slate-50 p-2 rounded-lg text-xs text-center border">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="qClient" placeholder="客戶ID" class="bg-slate-50 p-2 rounded-lg text-xs text-center">
+                    <input type="text" id="qCase" placeholder="案號" class="bg-slate-50 p-2 rounded-lg text-xs text-center">
+                </div>
+                <button onclick="updateUI()" class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold">執行過濾搜尋</button>
             </div>
             <div id="logContainer" class="space-y-3"></div>
         </div>
     </div>
 
+    <div id="nameModal" class="modal">
+        <div class="modal-content space-y-4">
+            <div class="flex justify-between items-center border-b pb-2"><h3 class="font-bold text-slate-800">建立名稱關聯</h3><span class="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">New ID</span></div>
+            <p id="modalHint" class="text-xs text-slate-500 leading-relaxed"></p>
+            <input type="text" id="newNameInput" class="w-full border-2 border-blue-50 p-4 rounded-xl text-center font-bold focus:border-blue-500 outline-none" placeholder="輸入名稱 (e.g. 某某公司)">
+            <button onclick="saveNewName()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-blue-200 shadow-lg">確認並關聯</button>
+        </div>
+    </div>
+
     <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around py-3 shadow-lg z-50">
-        <button onclick="switchTab('form')" id="btn-form" class="flex flex-col items-center px-6 active-tab-btn"><span class="text-xs font-bold">紀錄</span></button>
-        <button onclick="switchTab('analysis')" id="btn-analysis" class="flex flex-col items-center px-6 text-slate-400"><span class="text-xs font-bold">分析</span></button>
-        <button onclick="switchTab('list')" id="btn-list" class="flex flex-col items-center px-6 text-slate-400"><span class="text-xs font-bold">清單</span></button>
+        <button onclick="switchTab('form')" id="btn-form" class="flex flex-col items-center px-6 active-tab-btn"><span class="text-[10px] font-bold">紀錄</span></button>
+        <button onclick="switchTab('analysis')" id="btn-analysis" class="flex flex-col items-center px-6 text-slate-400"><span class="text-[10px] font-bold">分析</span></button>
+        <button onclick="switchTab('list')" id="btn-list" class="flex flex-col items-center px-6 text-slate-400"><span class="text-[10px] font-bold">查詢/修改</span></button>
     </div>
 
     <script>
         const DB_KEY = 'work_logs_final';
-        const CLIENT_KEY = 'clients_v3';
+        const META_KEY = 'meta_data_v4';
 
+        // --- 核心邏輯：資料搬家與修復 ---
         function getLogs() {
             let data = JSON.parse(localStorage.getItem(DB_KEY) || '[]');
+            
+            // 搬移所有舊標籤資料
             ['work_logs', 'work_logs_v2', 'work_logs_v3'].forEach(k => {
                 let old = JSON.parse(localStorage.getItem(k) || '[]');
-                old.forEach(ol => { if(!data.some(nl => nl.id === ol.id)) data.push(ol); });
+                old.forEach(ol => {
+                    if(!data.some(nl => nl.id === ol.id)) {
+                        // 修復舊資料沒有開始/結束日期的問題
+                        if(!ol.sd) ol.sd = ol.date || new Date().toISOString().split('T')[0].replace(/-/g,'/');
+                        if(!ol.ed) ol.ed = ol.sd;
+                        data.push(ol);
+                    }
+                });
             });
-            data = data.map(l => {
-                if(!l.sd) l.sd = l.date || new Date().toISOString().split('T')[0].replace(/-/g,'/');
-                if(!l.ed) l.ed = l.sd;
-                return l;
-            });
+            
             data.sort((a, b) => b.id - a.id);
             localStorage.setItem(DB_KEY, JSON.stringify(data));
             return data;
         }
 
         let logs = getLogs();
-        let clients = JSON.parse(localStorage.getItem(CLIENT_KEY) || '[]');
+        let meta = JSON.parse(localStorage.getItem(META_KEY) || '{"clients":{}, "cases":{}}');
+        let currentModalTarget = null;
         let pieChart, barChart;
 
-        function initDates() {
-            const now = new Date().toISOString().split('T')[0];
-            document.getElementById('startDate').value = now;
-            document.getElementById('endDate').value = now;
-            updateClientDatalist();
+        function init() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('startDate').value = today;
+            document.getElementById('endDate').value = today;
+            renderTopThree();
+            updateUI();
         }
 
-        function updateClientDatalist() {
-            document.getElementById('clientHistory').innerHTML = clients.map(c => `<option value="${c}">`).join('');
+        // --- 核心邏輯：ID 與 Name 連動 ---
+        document.getElementById('clientId').addEventListener('blur', function() {
+            const id = this.value.trim(); if(!id) return;
+            if(meta.clients[id]) {
+                document.getElementById('clientName').value = meta.clients[id];
+            } else {
+                openModal('client', id);
+            }
+        });
+
+        document.getElementById('caseId').addEventListener('blur', function() {
+            const id = this.value.trim(); if(!id) return;
+            if(meta.cases[id]) {
+                document.getElementById('matterName').value = meta.cases[id];
+                const hist = logs.find(l => l.cn === id);
+                if(hist) document.getElementById('caseType').value = hist.ct;
+            } else {
+                openModal('case', id);
+            }
+        });
+
+        function openModal(type, id) {
+            currentModalTarget = { type, id };
+            document.getElementById('modalHint').innerHTML = `偵測到新代碼 <b class="text-blue-600">${id}</b>。<br>請輸入對應的 ${type === 'client' ? 'Client Name' : 'Matter Name'} 以便日後自動帶入：`;
+            document.getElementById('nameModal').style.display = 'block';
         }
+
+        function saveNewName() {
+            const name = document.getElementById('newNameInput').value.trim();
+            if(!name) return;
+            if(currentModalTarget.type === 'client') {
+                meta.clients[currentModalTarget.id] = name;
+                document.getElementById('clientName').value = name;
+            } else {
+                meta.cases[currentModalTarget.id] = name;
+                document.getElementById('matterName').value = name;
+            }
+            localStorage.setItem(META_KEY, JSON.stringify(meta));
+            document.getElementById('nameModal').style.display = 'none';
+            document.getElementById('newNameInput').value = '';
+        }
+
+        // --- 核心邏輯：Top 3 熱門 (過去七天) ---
+        function renderTopThree() {
+            const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+            const freq = {};
+            logs.filter(l => l.id > sevenDaysAgo).forEach(l => {
+                const key = `${l.c}|${l.cn}`;
+                freq[key] = (freq[key] || 0) + 1;
+            });
+            const top3 = Object.entries(freq).sort((a,b) => b[1] - a[1]).slice(0,3);
+            const container = document.getElementById('topFrequency');
+            if(top3.length === 0) { container.innerHTML = ""; return; }
+            container.innerHTML = top3.map(([key]) => {
+                const [cid, mid] = key.split('|');
+                return `<div onclick="applyQuick('${cid}','${mid}')" class="bg-blue-600 text-white text-[10px] px-3 py-2 rounded-xl whitespace-nowrap shadow-sm active:scale-90 transition">🔥 ${cid} / ${mid}</div>`;
+            }).join('');
+        }
+
+        function applyQuick(cid, mid) {
+            document.getElementById('clientId').value = cid;
+            document.getElementById('caseId').value = mid;
+            document.getElementById('clientName').value = meta.clients[cid] || "";
+            document.getElementById('matterName').value = meta.cases[mid] || "";
+            const hist = logs.find(l => l.cn === mid);
+            if(hist) document.getElementById('caseType').value = hist.ct;
+            calc();
+        }
+
+        // --- 核心邏輯：查詢與修改 ---
+        function updateUI() {
+            const container = document.getElementById('logContainer');
+            const qs = document.getElementById('qStart').value, qe = document.getElementById('qEnd').value;
+            const qc = document.getElementById('qClient').value.trim(), qn = document.getElementById('qCase').value.trim();
+
+            const filtered = logs.filter(l => {
+                const dateMatch = (!qs || l.sd.replace(/\//g,'-') >= qs) && (!qe || l.sd.replace(/\//g,'-') <= qe);
+                const clientMatch = !qc || l.c.includes(qc);
+                const caseMatch = !qn || l.cn.includes(qn);
+                return dateMatch && clientMatch && caseMatch;
+            });
+
+            container.innerHTML = filtered.map(l => `
+                <div class="bg-white p-4 rounded-2xl border border-slate-100 relative shadow-sm">
+                    <div class="flex justify-between items-start">
+                        <div class="space-y-1">
+                            <p class="text-[10px] text-blue-600 font-black">${l.sd} ${l.s} → ${l.e}</p>
+                            <h3 class="font-bold text-slate-800 text-sm">${l.c} <span class="font-normal text-slate-400 text-xs">${meta.clients[l.c]||''}</span></h3>
+                            <p class="text-xs text-slate-500 font-medium">${l.cn} - <span class="text-slate-400">${meta.cases[l.cn]||''}</span></p>
+                            <p class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full inline-block text-slate-500">${l.ct} | ${l.wc}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xl font-black text-slate-900">${l.h.toFixed(1)}</p>
+                            <div class="flex gap-2 mt-3">
+                                <button onclick="editLog(${l.id})" class="bg-blue-50 text-blue-600 p-2 rounded-lg text-[10px] font-bold">修改</button>
+                                <button onclick="deleteLog(${l.id})" class="bg-red-50 text-red-400 p-2 rounded-lg text-[10px] font-bold">刪除</button>
+                            </div>
+                        </div>
+                    </div>
+                    ${l.desc ? `<p class="text-[11px] text-slate-500 mt-3 bg-slate-50 p-3 rounded-xl border-l-4 border-slate-200">${l.desc}</p>` : ''}
+                </div>
+            `).join('');
+            
+            const today = new Date().toISOString().split('T')[0].replace(/-/g, '/');
+            const dayTotal = logs.filter(l => l.sd === today).reduce((a, b) => a + b.h, 0);
+            document.getElementById('navDayTotal').innerText = dayTotal.toFixed(1);
+        }
+
+        function editLog(id) {
+            const l = logs.find(log => log.id === id);
+            if(!l) return;
+            document.getElementById('clientId').value = l.c;
+            document.getElementById('clientName').value = meta.clients[l.c] || '';
+            document.getElementById('caseId').value = l.cn;
+            document.getElementById('matterName').value = meta.cases[l.cn] || '';
+            document.getElementById('startDate').value = l.sd.replace(/\//g, '-');
+            document.getElementById('endDate').value = l.ed.replace(/\//g, '-');
+            document.getElementById('startTime').value = l.s;
+            document.getElementById('endTime').value = l.e;
+            document.getElementById('content').value = l.desc;
+            document.getElementById('caseType').value = l.ct;
+            document.getElementById('workCode').value = l.wc;
+            
+            logs = logs.filter(log => log.id !== id);
+            switchTab('form');
+            calc();
+        }
+
+        // --- 工具：時間計算 ---
+        function calc() {
+            const d1 = document.getElementById('startDate').value, t1 = document.getElementById('startTime').value;
+            const d2 = document.getElementById('endDate').value, t2 = document.getElementById('endTime').value;
+            if(d1 && t1 && d2 && t2) {
+                const start = new Date(`${d1}T${t1}`), end = new Date(`${d2}T${t2}`);
+                let diff = (end - start) / 60000;
+                document.getElementById('hours').value = diff >= 0 ? (Math.ceil(diff / 6) / 10).toFixed(1) : "Error: Check Dates";
+            }
+        }
+        ['startDate', 'startTime', 'endDate', 'endTime'].forEach(id => document.getElementById(id).onchange = calc);
+
+        document.getElementById('timeForm').onsubmit = (e) => {
+            e.preventDefault();
+            const h = parseFloat(document.getElementById('hours').value);
+            if(isNaN(h)) return alert('時間設定不正確，請檢查開始與結束日期');
+            const log = {
+                id: Date.now(),
+                sd: document.getElementById('startDate').value.replace(/-/g, '/'),
+                ed: document.getElementById('endDate').value.replace(/-/g, '/'),
+                s: document.getElementById('startTime').value,
+                e: document.getElementById('endTime').value,
+                h: h,
+                c: document.getElementById('clientId').value.trim(),
+                cn: document.getElementById('caseId').value.trim(),
+                wc: document.getElementById('workCode').value,
+                ct: document.getElementById('caseType').value,
+                desc: document.getElementById('content').value.trim()
+            };
+            logs.unshift(log);
+            localStorage.setItem(DB_KEY, JSON.stringify(logs));
+            alert('儲存成功'); e.target.reset(); init();
+        };
 
         function switchTab(t) {
             document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
@@ -170,77 +347,16 @@
             activeBtn.classList.add('active-tab-btn');
             activeBtn.classList.remove('text-slate-400');
             if(t === 'analysis') renderCharts();
-            if(t === 'list') updateUI();
-        }
-
-        document.getElementById('caseId').oninput = function() {
-            const found = logs.find(l => l.cn === this.value.trim());
-            document.getElementById('caseType').value = found ? found.ct : "M&A";
-        };
-
-        function calc() {
-            const d1 = document.getElementById('startDate').value, t1 = document.getElementById('startTime').value;
-            const d2 = document.getElementById('endDate').value, t2 = document.getElementById('endTime').value;
-            if(d1 && t1 && d2 && t2) {
-                const start = new Date(`${d1}T${t1}`), end = new Date(`${d2}T${t2}`);
-                let diff = (end - start) / 60000;
-                document.getElementById('hours').value = diff >= 0 ? (Math.ceil(diff / 6) / 10).toFixed(1) : "時間錯誤";
-            }
-        }
-        ['startDate', 'startTime', 'endDate', 'endTime'].forEach(id => document.getElementById(id).onchange = calc);
-
-        document.getElementById('timeForm').onsubmit = (e) => {
-            e.preventDefault();
-            const h = parseFloat(document.getElementById('hours').value);
-            if(isNaN(h)) return alert('請確認日期時間');
-            const clientVal = document.getElementById('clientId').value.trim();
-            const log = {
-                id: Date.now(),
-                sd: document.getElementById('startDate').value.replace(/-/g, '/'),
-                ed: document.getElementById('endDate').value.replace(/-/g, '/'),
-                s: document.getElementById('startTime').value,
-                e: document.getElementById('endTime').value,
-                h: h,
-                c: clientVal,
-                cn: document.getElementById('caseId').value.trim(),
-                wc: document.getElementById('workCode').value,
-                ct: document.getElementById('caseType').value,
-                desc: document.getElementById('content').value.trim()
-            };
-            if(clientVal && !clients.includes(clientVal)) {
-                clients.push(clientVal);
-                localStorage.setItem(CLIENT_KEY, JSON.stringify(clients));
-            }
-            logs.unshift(log);
-            localStorage.setItem(DB_KEY, JSON.stringify(logs));
-            alert('儲存成功'); e.target.reset(); initDates(); updateUI();
-        };
-
-        function updateUI() {
-            const container = document.getElementById('logContainer');
-            const search = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = logs.filter(l => l.c.toLowerCase().includes(search) || l.cn.toLowerCase().includes(search) || l.desc.toLowerCase().includes(search));
-            container.innerHTML = filtered.map(l => `
-                <div class="bg-white p-4 rounded-xl border mb-3 relative shadow-sm">
-                    <button onclick="deleteLog(${l.id})" class="absolute top-2 right-3 text-slate-300">✕</button>
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-[10px] text-blue-600 font-black mb-1">${l.sd} ${l.s} → ${l.ed === l.sd ? '' : l.ed.split('/').slice(1).join('/')} ${l.e}</p>
-                            <h3 class="font-bold text-slate-800 text-base">${l.c}</h3>
-                            <p class="text-xs text-slate-500 font-medium">${l.cn} <span class="ml-2 text-[10px] bg-slate-100 px-1 rounded">${l.ct}</span></p>
-                        </div>
-                        <div class="text-right"><p class="text-xl font-black text-slate-900">${l.h.toFixed(1)}</p></div>
-                    </div>
-                    ${l.desc ? `<p class="text-[11px] text-slate-500 mt-2 bg-slate-50 p-2 rounded border-l-2 border-slate-200">${l.desc}</p>` : ''}
-                </div>
-            `).join('');
-            const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '/');
-            const dayTotal = logs.filter(l => l.sd === todayStr).reduce((a, b) => a + b.h, 0);
-            document.getElementById('navDayTotal').innerText = dayTotal.toFixed(1);
+            updateUI();
         }
 
         function deleteLog(id) {
-            if(confirm('確定刪除？')) { logs = logs.filter(l => l.id !== id); localStorage.setItem(DB_KEY, JSON.stringify(logs)); updateUI(); }
+            if(confirm('確定刪除此紀錄？')) { logs = logs.filter(l => l.id !== id); localStorage.setItem(DB_KEY, JSON.stringify(logs)); updateUI(); }
+        }
+
+        function clearSearch() {
+            ['qStart','qEnd','qClient','qCase'].forEach(id => document.getElementById(id).value = '');
+            updateUI();
         }
 
         function renderCharts() {
@@ -249,29 +365,17 @@
             const typeCounts = {}; Object.values(caseMap).forEach(t => typeCounts[t] = (typeCounts[t]||0)+1);
             pieChart = new Chart(document.getElementById('pieChart'), {
                 type: 'pie', data: { labels: Object.keys(typeCounts), datasets: [{ data: Object.values(typeCounts), backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#64748b'] }] },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }
             });
             const monthData = {}; logs.forEach(l => { const m = l.sd.substring(0, 7); monthData[m] = (monthData[m]||0)+l.h; });
             const sorted = Object.keys(monthData).sort();
             barChart = new Chart(document.getElementById('barChart'), {
-                type: 'bar', data: { labels: sorted, datasets: [{ label: '工時', data: sorted.map(m=>monthData[m]), backgroundColor: '#6366f1' }] },
-                options: { responsive: true, maintainAspectRatio: false }
+                type: 'bar', data: { labels: sorted, datasets: [{ label: 'Total Hours', data: sorted.map(m=>monthData[m]), backgroundColor: '#6366f1', borderRadius: 5 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
 
-        function exportCSV() {
-            let csv = "\uFEFF開始日期,結束日期,客戶,案號,小時,WorkCode,類別,內容\n";
-            logs.forEach(l => { csv += `${l.sd},${l.ed},${l.c},${l.cn},${l.h},${l.wc},${l.ct},"${l.desc.replace(/"/g,'""')}"\n`; });
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `WorkLog_Export.csv`;
-            link.click();
-        }
-
-        document.getElementById('searchInput').oninput = updateUI;
-        initDates();
-        updateUI();
+        init();
     </script>
 </body>
 </html>
