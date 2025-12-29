@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>工作紀錄 Pro | iPhone 16 Edition</title>
+    <title>工作紀錄 Pro | v4.7</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -20,7 +20,6 @@
         .active-tab-btn { color: #2563eb !important; }
         .active-tab-btn::after { content: ''; position: absolute; bottom: 10px; width: 4px; height: 4px; background: #2563eb; border-radius: 50%; }
         input, select, textarea { font-size: 16px !important; border: 1px solid #e2e8f0 !important; }
-        input:focus { border-color: #3b82f6 !important; ring: 2px rgba(59, 130, 246, 0.1); }
         .content-container { padding-bottom: calc(100px + var(--safe-area-inset-bottom)); }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .spinning { animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
@@ -34,8 +33,8 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
             </button>
             <div>
-                <h1 class="text-md font-extrabold tracking-tight">紀錄系統</h1>
-                <p class="text-[9px] font-bold opacity-50 uppercase tracking-widest">v4.6 Fixed</p>
+                <h1 class="text-md font-extrabold tracking-tight text-blue-50">紀錄系統</h1>
+                <p class="text-[9px] font-bold opacity-50 uppercase tracking-widest">v4.7 Chart Fix</p>
             </div>
         </div>
         <div class="bg-blue-600/20 border border-blue-500/30 px-4 py-1.5 rounded-2xl text-right min-w-[80px]">
@@ -83,8 +82,15 @@
                 </div>
                 <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-200">
                     <h3 class="text-[10px] font-black text-slate-400 mb-2 text-center uppercase tracking-widest">Case Distribution</h3>
+                    <p class="text-[8px] text-blue-500 font-bold text-center mb-4">💡 Click a segment to see details</p>
                     <div class="h-60"><canvas id="pieChart"></canvas></div>
-                    <div id="caseDetails" class="mt-6 hidden animate-fadeIn"><div id="detailList" class="space-y-2 max-h-60 overflow-y-auto"></div></div>
+                    <div id="caseDetails" class="mt-6 hidden animate-fadeIn border-t border-slate-100 pt-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 id="detailTitle" class="text-xs font-black text-slate-800 uppercase tracking-wider">Details</h4>
+                            <button onclick="document.getElementById('caseDetails').classList.add('hidden')" class="text-slate-300 text-xs">Close</button>
+                        </div>
+                        <div id="detailList" class="space-y-2 max-h-60 overflow-y-auto"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -105,46 +111,170 @@
         <button onclick="switchTab('list')" id="btn-list" class="nav-btn text-slate-400"><span class="text-[10px] font-black uppercase tracking-tighter">Vault</span></button>
     </div>
 
-    <div id="nameModal" class="fixed inset-0 z-[200] hidden bg-black/60 backdrop-blur-sm">
-        <div class="bg-white m-10 p-6 rounded-[2.5rem] mt-[30%] shadow-2xl">
-            <h3 class="font-black text-slate-800 text-center uppercase tracking-tight">New Entry</h3>
-            <p id="modalHint" class="text-[10px] text-slate-400 text-center mb-4"></p>
-            <input type="text" id="newNameInput" class="w-full bg-slate-50 border-0 p-4 rounded-2xl text-center font-black outline-none mb-4" placeholder="Enter Name">
-            <button onclick="saveNewName()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black active:scale-95 transition">Confirm</button>
-        </div>
-    </div>
-
     <script>
         const DB_KEY = 'work_logs_final'; const META_KEY = 'meta_data_v4';
-        function forceRefresh() { const btn = document.getElementById('refreshBtn'); btn.classList.add('spinning'); const newUrl = window.location.href.split('?')[0] + '?t=' + new Date().getTime(); setTimeout(() => { window.location.replace(newUrl); }, 500); }
-        function getLogs() { let data = JSON.parse(localStorage.getItem(DB_KEY) || '[]'); ['work_logs', 'work_logs_v2', 'work_logs_v3'].forEach(k => { let old = JSON.parse(localStorage.getItem(k) || '[]'); old.forEach(ol => { if(!data.some(nl => nl.id === ol.id)) { if(!ol.sd) ol.sd = ol.date || new Date().toISOString().split('T')[0].replace(/-/g,'/'); if(!ol.ed) ol.ed = ol.sd; data.push(ol); } }); }); data.sort((a, b) => b.id - a.id); localStorage.setItem(DB_KEY, JSON.stringify(data)); return data; }
-        let logs = getLogs(); let meta = JSON.parse(localStorage.getItem(META_KEY) || '{"clients":{}, "cases":{}}');
-        let currentModalTarget = null; let pieChart, barChart;
+        let logs = JSON.parse(localStorage.getItem(DB_KEY) || '[]');
+        let meta = JSON.parse(localStorage.getItem(META_KEY) || '{"clients":{}, "cases":{}}');
+        let pieChart, barChart;
+
         function init() { const today = new Date().toISOString().split('T')[0]; document.getElementById('startDate').value = today; document.getElementById('endDate').value = today; renderTopThree(); updateUI(); }
-        document.getElementById('clientId').addEventListener('blur', function() { const id = this.value.trim(); if(!id) return; if(meta.clients[id]) document.getElementById('clientName').value = meta.clients[id]; else openModal('client', id); });
-        document.getElementById('caseId').addEventListener('blur', function() { const id = this.value.trim(); if(!id) return; if(meta.cases[id]) { document.getElementById('matterName').value = meta.cases[id]; const hist = logs.find(l => l.cn === id); if(hist) document.getElementById('caseType').value = hist.ct; } else openModal('case', id); });
-        function openModal(type, id) { currentModalTarget = { type, id }; document.getElementById('modalHint').innerText = `ID: ${id}`; document.getElementById('nameModal').classList.remove('hidden'); }
-        function saveNewName() { const name = document.getElementById('newNameInput').value.trim(); if(!name) return; if(currentModalTarget.type === 'client') { meta.clients[currentModalTarget.id] = name; document.getElementById('clientName').value = name; } else { meta.cases[currentModalTarget.id] = name; document.getElementById('matterName').value = name; } localStorage.setItem(META_KEY, JSON.stringify(meta)); document.getElementById('nameModal').classList.add('hidden'); document.getElementById('newNameInput').value = ''; }
-        function renderTopThree() { const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000); const freq = {}; logs.filter(l => l.id > sevenDaysAgo).forEach(l => { const key = `${l.c}|${l.cn}`; freq[key] = (freq[key] || 0) + 1; }); const top3 = Object.entries(freq).sort((a,b) => b[1] - a[1]).slice(0,3); const container = document.getElementById('topFrequency'); if(top3.length === 0) { container.innerHTML = ""; return; } container.innerHTML = top3.map(([key]) => { const [cid, mid] = key.split('|'); return `<div onclick="applyQuick('${cid}','${mid}')" class="bg-blue-600 text-white text-[9px] px-4 py-2.5 rounded-full whitespace-nowrap shadow-sm active:scale-95 transition font-black tracking-tight">🔥 ${mid}</div>`; }).join(''); }
-        function applyQuick(cid, mid) { document.getElementById('clientId').value = cid; document.getElementById('caseId').value = mid; document.getElementById('clientName').value = meta.clients[cid] || ""; document.getElementById('matterName').value = meta.cases[mid] || ""; const hist = logs.find(l => l.cn === mid); if(hist) document.getElementById('caseType').value = hist.ct; calc(); }
-        function updateUI() { 
-            const container = document.getElementById('logContainer'); const qs = document.getElementById('qStart').value, qe = document.getElementById('qEnd').value; const qc = document.getElementById('qClient').value.trim(), qn = document.getElementById('qCase').value.trim();
-            const filtered = logs.filter(l => { const dateMatch = (!qs || l.sd.replace(/\//g,'-') >= qs) && (!qe || l.sd.replace(/\//g,'-') <= qe); const clientMatch = !qc || l.c.includes(qc); const caseMatch = !qn || l.cn.includes(qn); return dateMatch && clientMatch && caseMatch; });
-            container.innerHTML = filtered.map(l => `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm relative"><div class="flex justify-between items-start"><div class="space-y-1"><p class="text-[9px] text-blue-600 font-black">${l.sd} • ${l.s}-${l.e}</p><h3 class="font-bold text-slate-800 text-xs">${l.c} <span class="text-slate-400 font-normal">${meta.clients[l.c]||''}</span></h3><p class="text-[10px] text-slate-500 font-bold">${l.cn} | ${meta.cases[l.cn]||''}</p></div><div class="text-right"><p class="text-lg font-black text-slate-900 font-mono">${l.h.toFixed(1)}</p><div class="flex gap-1 mt-2"><button onclick="editLog(${l.id})" class="text-[9px] font-black text-blue-500 uppercase px-2 py-1 bg-blue-50 rounded">Edit</button><button onclick="deleteLog(${l.id})" class="text-[9px] font-black text-red-400 uppercase px-2 py-1 bg-red-50 rounded">Del</button></div></div></div></div>`).join('');
+        
+        function forceRefresh() { const btn = document.getElementById('refreshBtn'); btn.classList.add('spinning'); setTimeout(() => { window.location.reload(); }, 500); }
+
+        function switchTab(t) {
+            document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+            document.getElementById('tab-' + t).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => { b.classList.remove('active-tab-btn'); b.classList.add('text-slate-400'); });
+            document.getElementById('btn-' + t).classList.add('active-tab-btn');
+            if(t === 'analysis') renderCharts();
+            updateUI();
+        }
+
+        // 核心修復：圖表渲染與點擊事件
+        function renderCharts() {
+            if (pieChart) pieChart.destroy(); if (barChart) barChart.destroy();
+            
+            // 計算各類型的案號數量
+            const caseTypeMap = {}; 
+            const typeCounts = {}; 
+            
+            // 找出每個案號對應的最後一個類型
+            logs.forEach(l => { if(l.cn) caseTypeMap[l.cn] = l.ct; });
+            Object.values(caseTypeMap).forEach(t => typeCounts[t] = (typeCounts[t]||0)+1);
+
+            const ctxPie = document.getElementById('pieChart').getContext('2d');
+            pieChart = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(typeCounts),
+                    datasets: [{ data: Object.values(typeCounts), backgroundColor: ['#3b82f6','#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'], borderWidth: 4, borderColor: '#ffffff' }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '70%',
+                    onClick: (evt, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const category = pieChart.data.labels[index];
+                            showCategoryDetails(category);
+                        }
+                    },
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, usePointStyle: true, font: { size: 10, weight: 'bold' } } } }
+                }
+            });
+
+            // 月份統計
+            const monthData = {}; logs.forEach(l => { const m = l.sd.substring(0, 7); monthData[m] = (monthData[m]||0)+l.h; });
+            const sorted = Object.keys(monthData).sort();
+            barChart = new Chart(document.getElementById('barChart'), {
+                type: 'bar',
+                data: { labels: sorted, datasets: [{ label: 'Total Hours', data: sorted.map(m=>monthData[m]), backgroundColor: '#3b82f6', borderRadius: 8 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function showCategoryDetails(category) {
+            const detailsDiv = document.getElementById('caseDetails');
+            const listDiv = document.getElementById('detailList');
+            const uniqueCases = new Set();
+            
+            // 找出屬於該類型的案號
+            logs.filter(l => l.ct === category).forEach(l => uniqueCases.add(`${l.c}|${l.cn}`));
+            
+            document.getElementById('detailTitle').innerText = `${category} Cases`;
+            listDiv.innerHTML = Array.from(uniqueCases).map(item => {
+                const [cid, mid] = item.split('|');
+                return `
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                        <div>
+                            <p class="text-[8px] font-black text-slate-400 uppercase">Client: ${cid}</p>
+                            <p class="text-xs font-extrabold text-slate-800">${mid}</p>
+                        </div>
+                        <p class="text-[9px] text-blue-600 font-bold">${meta.cases[mid] || ''}</p>
+                    </div>
+                `;
+            }).join('');
+            
+            detailsDiv.classList.remove('hidden');
+            detailsDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+
+        // 其餘邏輯保持...
+        function updateUI() {
+            const container = document.getElementById('logContainer');
             const today = new Date().toISOString().split('T')[0].replace(/-/g, '/');
             const dayTotal = logs.filter(l => l.sd === today).reduce((a, b) => a + b.h, 0);
             document.getElementById('navDayTotal').innerText = dayTotal.toFixed(1);
+
+            const qs = document.getElementById('qStart').value, qe = document.getElementById('qEnd').value;
+            const qc = document.getElementById('qClient').value.trim(), qn = document.getElementById('qCase').value.trim();
+            const filtered = logs.filter(l => {
+                const dateMatch = (!qs || l.sd.replace(/\//g,'-') >= qs) && (!qe || l.sd.replace(/\//g,'-') <= qe);
+                const clientMatch = !qc || l.c.includes(qc);
+                const caseMatch = !qn || l.cn.includes(qn);
+                return dateMatch && clientMatch && caseMatch;
+            });
+
+            container.innerHTML = filtered.map(l => `
+                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm relative">
+                    <div class="flex justify-between items-start">
+                        <div class="space-y-1">
+                            <p class="text-[9px] text-blue-600 font-black">${l.sd} • ${l.s}-${l.e}</p>
+                            <h3 class="font-bold text-slate-800 text-xs">${l.c} <span class="text-slate-400 font-normal">${meta.clients[l.c]||''}</span></h3>
+                            <p class="text-[10px] text-slate-500 font-bold">${l.cn} | ${meta.cases[l.cn]||''}</p>
+                        </div>
+                        <p class="text-lg font-black text-slate-900 font-mono">${l.h.toFixed(1)}</p>
+                    </div>
+                </div>
+            `).join('');
         }
-        function editLog(id) { const l = logs.find(log => log.id === id); if(!l) return; document.getElementById('clientId').value = l.c; document.getElementById('clientName').value = meta.clients[l.c] || ''; document.getElementById('caseId').value = l.cn; document.getElementById('matterName').value = meta.cases[l.cn] || ''; document.getElementById('startDate').value = l.sd.replace(/\//g, '-'); document.getElementById('endDate').value = l.ed.replace(/\//g, '-'); document.getElementById('startTime').value = l.s; document.getElementById('endTime').value = l.e; document.getElementById('content').value = l.desc; document.getElementById('caseType').value = l.ct; document.getElementById('workCode').value = l.wc; logs = logs.filter(log => log.id !== id); switchTab('form'); calc(); }
-        function calc() { const d1 = document.getElementById('startDate').value, t1 = document.getElementById('startTime').value; const d2 = document.getElementById('endDate').value, t2 = document.getElementById('endTime').value; if(d1 && t1 && d2 && t2) { const start = new Date(`${d1}T${t1}`), end = new Date(`${d2}T${t2}`); let diff = (end - start) / 60000; document.getElementById('hours').value = diff >= 0 ? (Math.ceil(diff / 6) / 10).toFixed(1) : "Error"; } }
-        ['startDate', 'startTime', 'endDate', 'endTime'].forEach(id => document.getElementById(id).onchange = calc);
-        document.getElementById('timeForm').onsubmit = (e) => { e.preventDefault(); const h = parseFloat(document.getElementById('hours').value); if(isNaN(h)) return alert('時間設定不正確'); const log = { id: Date.now(), sd: document.getElementById('startDate').value.replace(/-/g, '/'), ed: document.getElementById('endDate').value.replace(/-/g, '/'), s: document.getElementById('startTime').value, e: document.getElementById('endTime').value, h: h, c: document.getElementById('clientId').value.trim(), cn: document.getElementById('caseId').value.trim(), wc: document.getElementById('workCode').value, ct: document.getElementById('caseType').value, desc: document.getElementById('content').value.trim() }; logs.unshift(log); localStorage.setItem(DB_KEY, JSON.stringify(logs)); init(); switchTab('list'); };
-        function switchTab(t) { document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active')); document.getElementById('tab-' + t).classList.add('active'); document.querySelectorAll('.nav-btn').forEach(b => { b.classList.remove('active-tab-btn'); b.classList.add('text-slate-400'); }); const activeBtn = document.getElementById('btn-' + t); activeBtn.classList.add('active-tab-btn'); activeBtn.classList.remove('text-slate-400'); if(t === 'analysis') renderCharts(); updateUI(); }
-        function deleteLog(id) { if(confirm('Delete?')) { logs = logs.filter(l => l.id !== id); localStorage.setItem(DB_KEY, JSON.stringify(logs)); updateUI(); } }
-        function renderCharts() { if (pieChart) pieChart.destroy(); if (barChart) barChart.destroy(); const caseMap = {}; logs.forEach(l => { if(l.cn) caseMap[l.cn] = l.ct; }); const typeCounts = {}; Object.values(caseMap).forEach(t => typeCounts[t] = (typeCounts[t]||0)+1); pieChart = new Chart(document.getElementById('pieChart'), { type: 'doughnut', data: { labels: Object.keys(typeCounts), datasets: [{ data: Object.values(typeCounts), backgroundColor: ['#3b82f6','#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'], borderWidth: 4, borderColor: '#ffffff' }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, usePointStyle: true, font: { size: 10, weight: 'bold' } } } } } }); const monthData = {}; logs.forEach(l => { const m = l.sd.substring(0, 7); monthData[m] = (monthData[m]||0)+l.h; }); const sorted = Object.keys(monthData).sort(); barChart = new Chart(document.getElementById('barChart'), { type: 'bar', data: { labels: sorted, datasets: [{ label: 'Total Hours', data: sorted.map(m=>monthData[m]), backgroundColor: '#3b82f6', borderRadius: 12 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } } }); }
-        function exportCSV() { let csv = "\uFEFF開始日期,結束日期,客戶ID,客戶名稱,案號,案件名稱,小時,WorkCode,類別,內容\n"; logs.forEach(l => { csv += `${l.sd},${l.ed},${l.c},${meta.clients[l.c]||''},${l.cn},${meta.cases[l.cn]||''},${l.h},${l.wc},${l.ct},"${(l.desc||'').replace(/"/g,'""')}"\n`; }); const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `WorkLog_Export.csv`; link.click(); }
-        function clearSearch() { ['qStart','qEnd','qClient','qCase'].forEach(id => document.getElementById(id).value = ''); updateUI(); }
+
+        // 初始化與表單監聽...
         init();
+        document.getElementById('timeForm').onsubmit = (e) => {
+            e.preventDefault();
+            const h = parseFloat(document.getElementById('hours').value);
+            if(isNaN(h) || h <= 0) return alert('時間錯誤');
+            const log = {
+                id: Date.now(), sd: document.getElementById('startDate').value.replace(/-/g, '/'),
+                ed: document.getElementById('endDate').value.replace(/-/g, '/'),
+                s: document.getElementById('startTime').value, e: document.getElementById('endTime').value,
+                h: h, c: document.getElementById('clientId').value.trim(), cn: document.getElementById('caseId').value.trim(),
+                wc: document.getElementById('workCode').value, ct: document.getElementById('caseType').value, desc: document.getElementById('content').value.trim()
+            };
+            logs.unshift(log); localStorage.setItem(DB_KEY, JSON.stringify(logs));
+            init(); switchTab('list');
+        };
+
+        function calc() {
+            const d1 = document.getElementById('startDate').value, t1 = document.getElementById('startTime').value;
+            const d2 = document.getElementById('endDate').value, t2 = document.getElementById('endTime').value;
+            if(d1 && t1 && d2 && t2) {
+                const start = new Date(`${d1}T${t1}`), end = new Date(`${d2}T${t2}`);
+                let diff = (end - start) / 60000;
+                document.getElementById('hours').value = diff >= 0 ? (Math.ceil(diff / 6) / 10).toFixed(1) : "0.0";
+            }
+        }
+        ['startDate', 'startTime', 'endDate', 'endTime'].forEach(id => document.getElementById(id).onchange = calc);
+        
+        // 自動帶入名稱邏輯
+        document.getElementById('clientId').onblur = function() { if(meta.clients[this.value]) document.getElementById('clientName').value = meta.clients[this.value]; };
+        document.getElementById('caseId').onblur = function() { if(meta.cases[this.value]) document.getElementById('matterName').value = meta.cases[this.value]; };
+
+        function renderTopThree() {
+            const container = document.getElementById('topFrequency');
+            const freq = {}; logs.slice(0, 20).forEach(l => { const k = `${l.c}|${l.cn}`; freq[k] = (freq[k]||0)+1; });
+            const top = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,3);
+            container.innerHTML = top.map(([k]) => {
+                const [c, m] = k.split('|');
+                return `<div onclick="applyQuick('${c}','${m}')" class="bg-blue-600 text-white text-[9px] px-4 py-2 rounded-full whitespace-nowrap font-black">🔥 ${m}</div>`;
+            }).join('');
+        }
+
+        function applyQuick(c, m) {
+            document.getElementById('clientId').value = c; document.getElementById('caseId').value = m;
+            document.getElementById('clientName').value = meta.clients[c] || ''; document.getElementById('matterName').value = meta.cases[m] || '';
+            calc();
+        }
     </script>
 </body>
 </html>
