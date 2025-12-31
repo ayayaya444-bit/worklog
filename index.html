@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>工作紀錄 Pro | v6.3</title>
+    <title>工作紀錄 Pro | v6.4</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -54,7 +54,7 @@
     <nav class="bg-slate-900 text-white p-5 sticky top-0 z-50 flex justify-between items-center shadow-lg">
         <div class="flex items-center gap-3">
             <button onclick="location.reload()" class="bg-slate-800 p-2.5 rounded-xl border border-white/5"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button>
-            <div><h1 class="text-md font-extrabold tracking-tight">紀錄系統</h1><p class="text-[9px] font-bold text-blue-400 uppercase">v6.3 Analysis Focus</p></div>
+            <div><h1 class="text-md font-extrabold tracking-tight">紀錄系統</h1><p class="text-[9px] font-bold text-blue-400 uppercase">v6.4 Recovery Mode</p></div>
         </div>
         <div class="bg-blue-600/20 border border-blue-500/30 px-4 py-1.5 rounded-2xl text-right">
             <p class="text-[9px] font-black text-blue-400 uppercase mb-0.5">Today Total</p>
@@ -91,8 +91,32 @@
                             <input type="time" id="endTime" class="w-full bg-white p-2 text-xs font-bold text-center border-0 shadow-sm rounded-xl">
                         </div>
                     </div>
+                    
                     <input type="text" id="hours" readonly class="w-full bg-slate-900 text-blue-400 font-black rounded-2xl p-4 text-center text-3xl border-0" value="0.0">
-                    <div class="hidden"><select id="workCode"><option>D</option></select><select id="caseType"><option>其他</option></select></div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="space-y-1">
+                            <label class="px-1 text-[9px] font-black text-slate-400 uppercase">Work Code</label>
+                            <select id="workCode" class="w-full bg-slate-50 p-3 text-center text-sm font-bold border-0">
+                                <option value="D">D - Drafting</option>
+                                <option value="R">R - Reviewing</option>
+                                <option value="C">C - Conference</option>
+                                <option value="E">E - Email/Tel</option>
+                                <option value="O">O - Other</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="px-1 text-[9px] font-black text-slate-400 uppercase">Case Type</label>
+                            <select id="caseType" class="w-full bg-slate-50 p-3 text-center text-sm font-bold border-0">
+                                <option value="其他">其他</option>
+                                <option value="訴訟">訴訟</option>
+                                <option value="諮詢">諮詢</option>
+                                <option value="合約">合約</option>
+                                <option value="行政">行政</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <textarea id="content" rows="2" class="w-full bg-slate-50 p-3 text-sm font-medium border-0" placeholder="內容說明..."></textarea>
                     <button type="submit" id="submitBtn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase shadow-lg">Save Record</button>
                 </form>
@@ -146,7 +170,6 @@
             updateUI(); 
         }
 
-        // --- Analysis: 圓餅圖加入百分比標籤 ---
         function renderCharts() {
             if (pChart) pChart.destroy(); if (bChart) bChart.destroy();
             const catMap = {}; logs.forEach(l => { if(!catMap[l.ct]) catMap[l.ct] = new Set(); catMap[l.ct].add(l.cn); });
@@ -154,35 +177,13 @@
             const dataValues = labels.map(k=>catMap[k].size);
 
             pChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
-                type: 'doughnut',
-                plugins: [ChartDataLabels], // 啟用插件
-                data: { 
-                    labels, 
-                    datasets: [{ 
-                        data: dataValues, 
-                        backgroundColor: ['#3b82f6','#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'] 
-                    }] 
-                },
+                type: 'doughnut', plugins: [ChartDataLabels],
+                data: { labels, datasets: [{ data: dataValues, backgroundColor: ['#3b82f6','#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'] }] },
                 options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    onClick: (e, el) => { if(el.length) showCategoryDetails(labels[el[0].index]); },
+                    responsive: true, maintainAspectRatio: false, onClick: (e, el) => { if(el.length) showCategoryDetails(labels[el[0].index]); },
                     plugins: { 
                         legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10, weight: 'bold' } } },
-                        datalabels: { // 標籤設定
-                            formatter: (value, ctx) => {
-                                let sum = 0;
-                                let dataArr = ctx.chart.data.datasets[0].data;
-                                dataArr.map(data => { sum += data; });
-                                let percentage = (value * 100 / sum).toFixed(0) + "%";
-                                return percentage;
-                            },
-                            color: '#fff',
-                            font: { weight: 'bold', size: 11 },
-                            display: (ctx) => {
-                                return ctx.dataset.data[ctx.dataIndex] > 0; // 只顯示大於0的
-                            }
-                        }
+                        datalabels: { formatter: (v, ctx) => { let sum = 0; ctx.chart.data.datasets[0].data.map(d => sum += d); return (v * 100 / sum).toFixed(0) + "%"; }, color: '#fff', font: { weight: 'bold', size: 11 }, display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0 }
                     } 
                 }
             });
@@ -190,17 +191,11 @@
             const md = {}; logs.forEach(l => { const m = l.sd.substring(0, 7); md[m] = (md[m]||0)+l.h; });
             const sorted = Object.keys(md).sort();
             bChart = new Chart(document.getElementById('barChart').getContext('2d'), {
-                type: 'bar', 
-                data: { labels: sorted, datasets: [{ data: sorted.map(m=>md[m]), backgroundColor: '#3b82f6', borderRadius: 8 }] },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    plugins: { legend: { display: false }, datalabels: { display: false } } // 條形圖不顯示標籤
-                }
+                type: 'bar', data: { labels: sorted, datasets: [{ data: sorted.map(m=>md[m]), backgroundColor: '#3b82f6', borderRadius: 8 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { display: false } } }
             });
         }
 
-        // --- 其餘功能邏輯維持 v6.2 ---
         function showCategoryDetails(cat) {
             const area = document.getElementById('drillDownArea'), list = document.getElementById('drillDownList'), title = document.getElementById('drillDownTitle');
             const filtered = logs.filter(l => l.ct === cat); const matterSet = new Set(); filtered.forEach(l => matterSet.add(l.cn));
@@ -211,6 +206,7 @@
             }).join('');
             area.classList.remove('hidden'); area.scrollIntoView({ behavior: 'smooth' });
         }
+
         function startEdit(id) {
             const log = logs.find(l => l.id === id); if (!log) return; switchTab('form');
             document.getElementById('editId').value = log.id; document.getElementById('clientId').value = log.c;
@@ -218,9 +214,12 @@
             document.getElementById('endDate').value = log.ed.replace(/\//g, '-'); document.getElementById('startTime').value = log.s;
             document.getElementById('endTime').value = log.e; document.getElementById('hours').value = log.h.toFixed(1);
             document.getElementById('content').value = log.desc || ""; document.getElementById('clientName').value = meta.clients[log.c] || "";
-            document.getElementById('matterName').value = meta.cases[log.cn] || ""; document.getElementById('editBadge').classList.remove('hidden');
+            document.getElementById('matterName').value = meta.cases[log.cn] || ""; 
+            document.getElementById('workCode').value = log.wc || "D"; document.getElementById('caseType').value = log.ct || "其他";
+            document.getElementById('editBadge').classList.remove('hidden');
             document.getElementById('submitBtn').innerText = "Update Record"; document.getElementById('submitBtn').classList.replace('bg-blue-600', 'bg-orange-500');
         }
+
         function cancelEdit() { document.getElementById('timeForm').reset(); document.getElementById('editId').value = ""; document.getElementById('editBadge').classList.add('hidden'); document.getElementById('submitBtn').innerText = "Save Record"; document.getElementById('submitBtn').classList.replace('bg-orange-500', 'bg-blue-600'); init(); }
         function openIdManager() { document.getElementById('idManagerModal').style.display = 'flex'; renderIdList(); }
         function closeIdManager() { document.getElementById('idManagerModal').style.display = 'none'; }
