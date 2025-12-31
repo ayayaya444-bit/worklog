@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>工作紀錄 Pro | v7.8</title>
+    <title>工作紀錄 Pro | v7.9</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -49,7 +49,7 @@
             <button id="refreshBtn" onclick="handleRefresh()" class="bg-slate-800 p-2.5 rounded-xl border border-white/5 transition-all">
                 <svg id="refreshIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
             </button>
-            <div><h1 class="text-md font-extrabold tracking-tight">紀錄系統</h1><p class="text-[9px] font-bold text-blue-400 uppercase">v7.8 Auto Refresh & Sort</p></div>
+            <div><h1 class="text-md font-extrabold tracking-tight">紀錄系統</h1><p class="text-[9px] font-bold text-blue-400 uppercase">v7.9 Auto Case Type</p></div>
         </div>
         <div class="bg-blue-600/20 border border-blue-500/30 px-4 py-1.5 rounded-2xl text-right">
             <p class="text-[9px] font-black text-blue-400 uppercase mb-0.5">Today Total</p>
@@ -68,11 +68,11 @@
                 <form id="timeForm" class="space-y-4">
                     <input type="hidden" id="editId">
                     <div class="grid grid-cols-2 gap-3">
-                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Client ID</label><input type="text" id="clientId" required class="w-full bg-slate-50 p-3 text-center text-sm font-bold font-mono border-0" onblur="checkAndLearn('client')"></div>
+                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Client ID</label><input type="text" id="clientId" required class="w-full bg-slate-50 p-3 text-center text-sm font-bold font-mono border-0" onblur="checkAndLearn('client'); autoFillCaseType();"></div>
                         <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Client Name</label><input type="text" id="clientName" class="w-full bg-slate-100 p-3 text-center text-sm text-slate-400 border-0" readonly></div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
-                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Case No.</label><input type="text" id="caseId" required class="w-full bg-slate-50 p-3 text-center text-sm font-bold font-mono border-0" onblur="checkAndLearn('case')"></div>
+                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Case No.</label><input type="text" id="caseId" required class="w-full bg-slate-50 p-3 text-center text-sm font-bold font-mono border-0" onblur="checkAndLearn('case'); autoFillCaseType();"></div>
                         <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Matter Name</label><input type="text" id="matterName" class="w-full bg-slate-100 p-3 text-center text-sm text-slate-400 border-0" readonly></div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
@@ -143,6 +143,19 @@
             updateUI(); 
         }
 
+        // 新增：自動帶入該案件的前次 Case Type
+        function autoFillCaseType() {
+            const cId = document.getElementById('clientId').value.trim();
+            const csId = document.getElementById('caseId').value.trim();
+            if (cId && csId) {
+                // 從最新的紀錄往回找
+                const lastLog = logs.find(l => l.c === cId && l.cn === csId);
+                if (lastLog && lastLog.ct) {
+                    document.getElementById('caseType').value = lastLog.ct;
+                }
+            }
+        }
+
         function handleRefresh() {
             const icon = document.getElementById('refreshIcon');
             icon.classList.add('spin-active');
@@ -150,46 +163,31 @@
         }
 
         function exportLL() {
-            const qs = document.getElementById('qStart').value.replace(/-/g, '/');
-            const qe = document.getElementById('qEnd').value.replace(/-/g, '/');
-            const qc = document.getElementById('qClient').value.trim().toUpperCase();
-            const qcas = document.getElementById('qCase').value.trim().toUpperCase();
+            const qs = document.getElementById('qStart').value.replace(/-/g, '/'), qe = document.getElementById('qEnd').value.replace(/-/g, '/'), qc = document.getElementById('qClient').value.trim().toUpperCase(), qcas = document.getElementById('qCase').value.trim().toUpperCase();
             if (!qs || !qe) { alert("請先選擇區間"); return; }
             const filtered = logs.filter(l => {
-                const dateMatch = (l.sd >= qs && l.sd <= qe);
-                const clientMatch = !qc || l.c.toUpperCase().includes(qc);
-                const caseMatch = !qcas || l.cn.toUpperCase().includes(qcas);
+                const dateMatch = (l.sd >= qs && l.sd <= qe), clientMatch = !qc || l.c.toUpperCase().includes(qc), caseMatch = !qcas || l.cn.toUpperCase().includes(qcas);
                 return dateMatch && clientMatch && caseMatch;
-            }).sort((a,b) => b.sd.localeCompare(a.sd) || b.s.localeCompare(a.s)); // 修改 2: 降冪排序
-
+            }).sort((a,b) => b.sd.localeCompare(a.sd) || b.s.localeCompare(a.s));
             if (!filtered.length) { alert("無資料"); return; }
             let csv = "\uFEFF承辦人員(Initial),工作日期(e.g.20201031),客戶代碼,案件代碼,處理時數(e.g.2.0),工作代碼(e.g.RA/D...),處理說明,客戶對應碼\n";
             filtered.forEach(l => {
-                const staff = `="CYE"`, date = `="${l.sd.replace(/\//g, '')}"`, client = `="${l.c}"`, caseNo = `="${l.cn}"`, hours = l.h.toFixed(1), code = `="${l.wc}"`, desc = `="${l.desc.replace(/"/g, '""')}"`, ref = `=""`;
-                csv += [staff, date, client, caseNo, hours, code, desc, ref].join(",") + "\n";
+                csv += `="CYE","${l.sd.replace(/\//g, '')}","${l.c}","${l.cn}",${l.h.toFixed(1)},"${l.wc}","${l.desc.replace(/"/g, '""')}",""\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `LL_Report_${qs.replace(/\//g,'')}_${qe.replace(/\//g,'')}.csv`;
-            link.click();
+            const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+            link.download = `LL_Report_${qs.replace(/\//g,'')}_${qe.replace(/\//g,'')}.csv`; link.click();
         }
 
         function updateUI() {
             const now = new Date(); const todaySlash = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
             document.getElementById('navDayTotal').innerText = logs.filter(l => l.sd === todaySlash).reduce((s, c) => s + c.h, 0).toFixed(1);
-            
             const container = document.getElementById('logContainer');
             const qs = document.getElementById('qStart').value.replace(/-/g, '/'), qe = document.getElementById('qEnd').value.replace(/-/g, '/'), qc = document.getElementById('qClient').value.trim().toUpperCase(), qcas = document.getElementById('qCase').value.trim().toUpperCase();
-
-            // 修改 2: Vault 頁面依日期及時間從新到舊排序
             const filtered = logs.filter(l => {
-                const dateMatch = (!qs || l.sd >= qs) && (!qe || l.sd <= qe);
-                const clientMatch = !qc || l.c.toUpperCase().includes(qc);
-                const caseMatch = !qcas || l.cn.toUpperCase().includes(qcas);
+                const dateMatch = (!qs || l.sd >= qs) && (!qe || l.sd <= qe), clientMatch = !qc || l.c.toUpperCase().includes(qc), caseMatch = !qcas || l.cn.toUpperCase().includes(qcas);
                 return dateMatch && clientMatch && caseMatch;
             }).sort((a,b) => b.sd.localeCompare(a.sd) || b.s.localeCompare(a.s));
-
             container.innerHTML = filtered.map(l => `
                 <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-fadeIn">
                     <div class="p-4 flex justify-between items-start">
@@ -212,13 +210,7 @@
 
         function renderCharts() { 
             if (pChart) pChart.destroy(); if (bChart) bChart.destroy();
-            // 修改 1: 排除 Client ID 為 L00640 的資料
-            const catMap = {}; 
-            logs.forEach(l => { 
-                if (l.c === 'L00640') return; 
-                if(!catMap[l.ct]) catMap[l.ct] = new Set(); 
-                catMap[l.ct].add(l.cn); 
-            });
+            const catMap = {}; logs.forEach(l => { if (l.c === 'L00640') return; if(!catMap[l.ct]) catMap[l.ct] = new Set(); catMap[l.ct].add(l.cn); });
             const labels = Object.keys(catMap); const dataValues = labels.map(k=>catMap[k].size);
             pChart = new Chart(document.getElementById('pieChart').getContext('2d'), { 
                 type: 'doughnut', plugins: [ChartDataLabels], 
@@ -232,19 +224,9 @@
 
         function showCategoryDetails(cat) {
             const area = document.getElementById('drillDownArea'), list = document.getElementById('drillDownList'), title = document.getElementById('drillDownTitle');
-            const filtered = logs.filter(l => l.ct === cat && l.c !== 'L00640'); // 同步排除 L00640
-            const uniqueCases = []; const seen = new Set(); 
+            const filtered = logs.filter(l => l.ct === cat && l.c !== 'L00640'), uniqueCases = []; const seen = new Set(); 
             filtered.forEach(l => { if(!seen.has(l.cn)) { uniqueCases.push(l); seen.add(l.cn); } });
-            title.innerText = cat;
-            list.innerHTML = uniqueCases.map(l => `
-                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                    <div class="flex flex-col gap-0.5">
-                        <p class="text-[8px] font-black text-slate-400 uppercase">Client: ${l.c} - ${meta.clients[l.c] || 'N/A'}</p>
-                        <p class="text-[8px] font-black text-blue-500 uppercase mt-0.5">Case No: ${l.cn}</p>
-                        <h3 class="font-bold text-slate-800 text-xs">${meta.cases[l.cn] || 'No Name'}</h3>
-                    </div>
-                </div>
-            `).join('');
+            title.innerText = cat; list.innerHTML = uniqueCases.map(l => `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div class="flex flex-col gap-0.5"><p class="text-[8px] font-black text-slate-400 uppercase">Client: ${l.c} - ${meta.clients[l.c] || 'N/A'}</p><p class="text-[8px] font-black text-blue-500 uppercase mt-0.5">Case No: ${l.cn}</p><h3 class="font-bold text-slate-800 text-xs">${meta.cases[l.cn] || 'No Name'}</h3></div></div>`).join('');
             area.classList.remove('hidden'); area.scrollIntoView({ behavior: 'smooth' });
         }
 
@@ -262,26 +244,16 @@
         }
         function cancelEdit() { document.getElementById('timeForm').reset(); document.getElementById('editId').value = ""; document.getElementById('editBadge').classList.add('hidden'); document.getElementById('submitBtn').innerText = "Save Record"; document.getElementById('submitBtn').classList.replace('bg-orange-500', 'bg-blue-600'); init(); }
         function deleteLog(id) { if (confirm("確定刪除？")) { logs = logs.filter(l => l.id !== id); localStorage.setItem(DB_KEY, JSON.stringify(logs)); updateUI(); } }
-        
         document.getElementById('timeForm').onsubmit = (e) => { 
-            e.preventDefault(); 
-            const editId = document.getElementById('editId').value; 
-            const logData = { sd: document.getElementById('startDate').value.replace(/-/g, '/'), ed: document.getElementById('endDate').value.replace(/-/g, '/'), s: document.getElementById('startTime').value, e: document.getElementById('endTime').value, h: parseFloat(document.getElementById('hours').value), c: document.getElementById('clientId').value.trim(), cn: document.getElementById('caseId').value.trim(), wc: document.getElementById('workCode').value, ct: document.getElementById('caseType').value, desc: document.getElementById('content').value.trim() }; 
-            if (editId) { 
-                const idx = logs.findIndex(l => l.id == editId); 
-                logs[idx] = { ...logs[idx], ...logData }; 
-            } else { 
-                logs.unshift({ id: Date.now(), ...logData }); 
-            } 
-            localStorage.setItem(DB_KEY, JSON.stringify(logs)); 
-            // 修改 3: 輸入一筆工時後，重新刷新頁面
-            location.reload();
+            e.preventDefault(); const editId = document.getElementById('editId').value, logData = { sd: document.getElementById('startDate').value.replace(/-/g, '/'), ed: document.getElementById('endDate').value.replace(/-/g, '/'), s: document.getElementById('startTime').value, e: document.getElementById('endTime').value, h: parseFloat(document.getElementById('hours').value), c: document.getElementById('clientId').value.trim(), cn: document.getElementById('caseId').value.trim(), wc: document.getElementById('workCode').value, ct: document.getElementById('caseType').value, desc: document.getElementById('content').value.trim() }; 
+            if (editId) { const idx = logs.findIndex(l => l.id == editId); logs[idx] = { ...logs[idx], ...logData }; } else { logs.unshift({ id: Date.now(), ...logData }); } 
+            localStorage.setItem(DB_KEY, JSON.stringify(logs)); location.reload();
         };
 
         function openIdManager() { document.getElementById('idManagerModal').style.display = 'flex'; renderIdList(); }
         function closeIdManager() { document.getElementById('idManagerModal').style.display = 'none'; }
         function switchManageTab(t) { currentManageTab = t; renderIdList(); }
-        function renderIdList() { const list = document.getElementById('idListScroll'); const data = currentManageTab === 'client' ? meta.clients : meta.cases; list.innerHTML = Object.entries(data).length ? Object.entries(data).map(([id, name]) => `<div class="bg-white p-3 rounded-xl flex justify-between items-center"><div><p class="text-[8px] font-black text-slate-400 uppercase">${id}</p><p class="text-xs font-bold text-slate-700">${name}</p></div><button onclick="deleteIdEntry('${id}')" class="text-red-300 p-2">🗑️</button></div>`).join('') : '<p class="text-center text-[10px] py-10">NO DATA</p>'; }
+        function renderIdList() { const list = document.getElementById('idListScroll'), data = currentManageTab === 'client' ? meta.clients : meta.cases; list.innerHTML = Object.entries(data).length ? Object.entries(data).map(([id, name]) => `<div class="bg-white p-3 rounded-xl flex justify-between items-center"><div><p class="text-[8px] font-black text-slate-400 uppercase">${id}</p><p class="text-xs font-bold text-slate-700">${name}</p></div><button onclick="deleteIdEntry('${id}')" class="text-red-300 p-2">🗑️</button></div>`).join('') : '<p class="text-center text-[10px] py-10">NO DATA</p>'; }
         function deleteIdEntry(id) { if (confirm(`刪除 "${id}"？`)) { if (currentManageTab === 'client') delete meta.clients[id]; else delete meta.cases[id]; localStorage.setItem(META_KEY, JSON.stringify(meta)); renderIdList(); } }
         function checkAndLearn(type) { const idVal = document.getElementById(type === 'client' ? 'clientId' : 'caseId').value.trim(); if (!idVal || (type === 'client' ? meta.clients[idVal] : meta.cases[idVal])) return; learningType = type; document.getElementById('modalTitle').innerText = `新 ${type.toUpperCase()} 名稱`; document.getElementById('modalSubtitle').innerText = `ID: ${idVal}`; document.getElementById('modalInput').value = ''; document.getElementById('learningModal').style.display = 'flex'; }
         function confirmLearning() { const name = document.getElementById('modalInput').value.trim(), id = document.getElementById(learningType === 'client' ? 'clientId' : 'caseId').value.trim(); if (name) { if (learningType === 'client') meta.clients[id] = name; else meta.cases[id] = name; localStorage.setItem(META_KEY, JSON.stringify(meta)); } document.getElementById('learningModal').style.display = 'none'; }
@@ -289,7 +261,7 @@
         function calc() { const d1 = document.getElementById('startDate').value, t1 = document.getElementById('startTime').value, d2 = document.getElementById('endDate').value, t2 = document.getElementById('endTime').value; if(d1 && t1 && d2 && t2) { const diff = (new Date(`${d2}T${t2}`) - new Date(`${d1}T${t1}`)) / 60000; document.getElementById('hours').value = diff >= 0 ? (Math.ceil(diff / 6) / 10).toFixed(1) : "0.0"; } }
         ['startDate', 'startTime', 'endDate', 'endTime'].forEach(id => document.getElementById(id).onchange = calc);
         function renderTopThree() { const freq = {}; logs.slice(0, 30).forEach(l => { const k = `${l.c}|${l.cn}`; freq[k] = (freq[k]||0)+1; }); const top = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,3); document.getElementById('topFrequency').innerHTML = top.map(([k]) => `<div onclick="applyQuick('${k.split('|')[0]}','${k.split('|')[1]}')" class="bg-blue-600 text-white text-[9px] px-4 py-2 rounded-full font-black">🔥 ${k.split('|')[1]}</div>`).join(''); }
-        function applyQuick(c, m) { document.getElementById('clientId').value = c; document.getElementById('caseId').value = m; document.getElementById('clientName').value = meta.clients[c] || ""; document.getElementById('matterName').value = meta.cases[m] || ""; calc(); }
+        function applyQuick(c, m) { document.getElementById('clientId').value = c; document.getElementById('caseId').value = m; document.getElementById('clientName').value = meta.clients[c] || ""; document.getElementById('matterName').value = meta.cases[m] || ""; autoFillCaseType(); calc(); }
         init();
     </script>
 </body>
