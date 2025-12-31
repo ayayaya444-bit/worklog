@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>工作紀錄 Pro | v6.0</title>
+    <title>工作紀錄 Pro | v6.1</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -27,7 +27,23 @@
 </head>
 <body class="content-container">
 
-    <div id="idManagerModal" class="modal-overlay"><div class="modal-card">... (ID Manager Code) ...</div></div>
+    <div id="idManagerModal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                <div><h2 class="text-xl font-black text-slate-800">ID 管理中心</h2><p class="text-[10px] font-bold text-slate-400 uppercase">Database Editor</p></div>
+                <button onclick="closeIdManager()" class="bg-slate-100 p-2 rounded-full text-slate-400">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="flex p-2 bg-slate-50 gap-1">
+                <button id="manage-tab-client" onclick="switchManageTab('client')" class="flex-1 py-2 text-[11px] font-black rounded-xl bg-white shadow-sm text-blue-600">CLIENTS</button>
+                <button id="manage-tab-case" onclick="switchManageTab('case')" class="flex-1 py-2 text-[11px] font-black rounded-xl text-slate-400">MATTERS</button>
+            </div>
+            <div id="idListScroll" class="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/50"></div>
+            <div class="p-4 bg-white"><button onclick="closeIdManager()" class="w-full bg-slate-900 text-white py-3 rounded-2xl font-black text-xs uppercase">Done</button></div>
+        </div>
+    </div>
+
     <div id="learningModal" class="modal-overlay">
         <div class="modal-card !max-w-[320px] p-6 space-y-4">
             <div class="text-center"><span class="bg-blue-100 text-blue-600 text-[10px] font-black px-3 py-1 rounded-full uppercase">New Discovery</span><h2 class="text-lg font-extrabold text-slate-800 mt-2" id="modalTitle">輸入名稱</h2><p class="text-xs text-slate-400" id="modalSubtitle">ID: ---</p></div>
@@ -39,7 +55,7 @@
     <nav class="bg-slate-900 text-white p-5 sticky top-0 z-50 flex justify-between items-center shadow-lg">
         <div class="flex items-center gap-3">
             <button onclick="location.reload()" class="bg-slate-800 p-2.5 rounded-xl border border-white/5"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button>
-            <div><h1 class="text-md font-extrabold tracking-tight">紀錄系統</h1><p class="text-[9px] font-bold text-blue-400 uppercase">v6.0 Edit Mode</p></div>
+            <div><h1 class="text-md font-extrabold tracking-tight">紀錄系統</h1><p class="text-[9px] font-bold text-blue-400 uppercase">v6.1 Fixed Tools</p></div>
         </div>
         <div class="bg-blue-600/20 border border-blue-500/30 px-4 py-1.5 rounded-2xl text-right">
             <p class="text-[9px] font-black text-blue-400 uppercase mb-0.5">Today Total</p>
@@ -70,9 +86,7 @@
                         <div class="bg-indigo-50/50 p-2 rounded-2xl text-center"><label class="text-[9px] font-black text-indigo-600 uppercase">End</label><input type="date" id="endDate" class="w-full bg-transparent p-1 text-xs font-bold text-center"><input type="time" id="endTime" class="w-full bg-white p-2 text-xs font-bold shadow-sm text-center"></div>
                     </div>
                     <input type="text" id="hours" readonly class="w-full bg-slate-900 text-blue-400 font-black rounded-2xl p-4 text-center text-3xl border-0" value="0.0">
-                    <div class="grid grid-cols-2 gap-3">
-                        <select id="workCode" class="bg-slate-50 p-3 font-bold text-slate-700 shadow-sm"><option>D</option><option>RW</option><option>CF</option></select>
-                        <select id="caseType" class="bg-slate-50 p-3 font-bold text-slate-700 shadow-sm text-xs"><option>M&A</option><option>General Corporate</option><option>Corporate Financing</option><option>Project Financing</option><option>Bond Issuance</option><option>Formosa Bond</option><option>金融商品</option><option>PE Fund</option><option>其他</option></select>
+                    <div class="grid grid-cols-2 gap-3 hidden"> <select id="workCode"><option>D</option></select><select id="caseType"><option>其他</option></select>
                     </div>
                     <textarea id="content" rows="2" class="w-full bg-slate-50 p-3 text-sm font-medium" placeholder="內容說明..."></textarea>
                     <button type="submit" id="submitBtn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase shadow-lg">Save Record</button>
@@ -127,40 +141,62 @@
             updateUI(); 
         }
 
-        // --- 編輯功能實作 ---
-        function startEdit(id) {
-            const log = logs.find(l => l.id === id);
-            if (!log) return;
-            switchTab('form');
-            document.getElementById('editId').value = log.id;
-            document.getElementById('clientId').value = log.c;
-            document.getElementById('caseId').value = log.cn;
-            document.getElementById('startDate').value = log.sd.replace(/\//g, '-');
-            document.getElementById('endDate').value = log.ed.replace(/\//g, '-');
-            document.getElementById('startTime').value = log.s;
-            document.getElementById('endTime').value = log.e;
-            document.getElementById('hours').value = log.h.toFixed(1);
-            document.getElementById('workCode').value = log.wc;
-            document.getElementById('caseType').value = log.ct;
-            document.getElementById('content').value = log.desc || "";
-            document.getElementById('clientName').value = meta.clients[log.c] || "";
-            document.getElementById('matterName').value = meta.cases[log.cn] || "";
-            
-            document.getElementById('editBadge').classList.remove('hidden');
-            document.getElementById('submitBtn').innerText = "Update Record";
-            document.getElementById('submitBtn').classList.replace('bg-blue-600', 'bg-orange-500');
+        // --- Analysis 明細更新：顯示客戶名稱，取消總時數 ---
+        function showCategoryDetails(cat) {
+            const area = document.getElementById('drillDownArea'), list = document.getElementById('drillDownList'), title = document.getElementById('drillDownTitle');
+            const filtered = logs.filter(l => l.ct === cat);
+            // 建立不重複案號列表
+            const matterSet = new Set(); filtered.forEach(l => matterSet.add(l.cn));
+            title.innerText = cat;
+            list.innerHTML = Array.from(matterSet).map(cn => {
+                const sampleLog = filtered.find(l => l.cn === cn);
+                const clientID = sampleLog ? sampleLog.c : 'N/A';
+                const clientName = meta.clients[clientID] || 'Unknown Client';
+                return `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-[8px] font-black text-blue-500 uppercase">Case No: ${cn}</p>
+                                <h3 class="font-bold text-slate-800 text-xs">${meta.cases[cn] || 'No Name'}</h3>
+                            </div>
+                        </div>
+                        <div class="mt-2 pt-2 border-t border-slate-50">
+                            <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Client</p>
+                            <p class="text-[10px] text-slate-600 font-bold">${clientID} - ${clientName}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            area.classList.remove('hidden'); area.scrollIntoView({ behavior: 'smooth' });
         }
 
-        function cancelEdit() {
-            document.getElementById('timeForm').reset();
-            document.getElementById('editId').value = "";
-            document.getElementById('editBadge').classList.add('hidden');
-            document.getElementById('submitBtn').innerText = "Save Record";
-            document.getElementById('submitBtn').classList.replace('bg-orange-500', 'bg-blue-600');
-            init();
+        // --- ID 管理中心修復 ---
+        function openIdManager() { document.getElementById('idManagerModal').style.display = 'flex'; renderIdList(); }
+        function closeIdManager() { document.getElementById('idManagerModal').style.display = 'none'; }
+        function switchManageTab(t) { 
+            currentManageTab = t; 
+            const cBtn = document.getElementById('manage-tab-client'), mBtn = document.getElementById('manage-tab-case');
+            if(t === 'client') {
+                cBtn.classList.add('bg-white', 'shadow-sm', 'text-blue-600'); cBtn.classList.remove('text-slate-400');
+                mBtn.classList.remove('bg-white', 'shadow-sm', 'text-blue-600'); mBtn.classList.add('text-slate-400');
+            } else {
+                mBtn.classList.add('bg-white', 'shadow-sm', 'text-blue-600'); mBtn.classList.remove('text-slate-400');
+                cBtn.classList.remove('bg-white', 'shadow-sm', 'text-blue-600'); cBtn.classList.add('text-slate-400');
+            }
+            renderIdList(); 
         }
+        function renderIdList() {
+            const list = document.getElementById('idListScroll'); const data = currentManageTab === 'client' ? meta.clients : meta.cases;
+            list.innerHTML = Object.entries(data).length ? Object.entries(data).map(([id, name]) => `
+                <div class="bg-white p-3 rounded-xl flex justify-between items-center animate-fadeIn">
+                    <div><p class="text-[8px] font-black text-slate-400 uppercase">${id}</p><p class="text-xs font-bold text-slate-700">${name}</p></div>
+                    <button onclick="deleteIdEntry('${id}')" class="text-red-300 hover:text-red-500 p-2 transition-colors"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
+                </div>
+            `).join('') : '<p class="text-center text-[10px] font-bold text-slate-300 py-10">NO DATA FOUND</p>';
+        }
+        function deleteIdEntry(id) { if (confirm(`確定從資料庫永久刪除 "${id}"？`)) { if (currentManageTab === 'client') delete meta.clients[id]; else delete meta.cases[id]; localStorage.setItem(META_KEY, JSON.stringify(meta)); renderIdList(); } }
 
-        // --- Vault 介面更新：顯示起迄時間、移除類型、增加編輯 ---
+        // --- Vault 介面更新 ---
         function updateUI() {
             const now = new Date();
             const todaySlash = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
@@ -169,7 +205,6 @@
             const container = document.getElementById('logContainer');
             const qs = document.getElementById('qStart').value.replace(/-/g, '/'), qe = document.getElementById('qEnd').value.replace(/-/g, '/');
             const qc = document.getElementById('qClient').value.trim().toUpperCase(), qn = document.getElementById('qCase').value.trim().toUpperCase();
-            
             const filtered = logs.filter(l => (!qs || l.sd >= qs) && (!qe || l.sd <= qe) && (!qc || l.c.toUpperCase().includes(qc)) && (!qn || l.cn.toUpperCase().includes(qn)));
 
             container.innerHTML = filtered.map(l => `
@@ -185,54 +220,31 @@
                         </div>
                         <div class="flex items-center gap-1.5">
                             <div class="text-right mr-1"><p class="text-lg font-black font-mono text-slate-900 leading-none">${l.h.toFixed(1)}</p><p class="text-[7px] font-black text-slate-300 uppercase">Hours</p></div>
-                            <button onclick="startEdit(${l.id})" class="text-slate-300 hover:text-blue-500 p-1">
-                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                            </button>
-                            <button onclick="deleteLog(${l.id})" class="text-red-100 hover:text-red-400 p-1">
-                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7M4 7h16"/></svg>
-                            </button>
+                            <button onclick="startEdit(${l.id})" class="text-slate-300 hover:text-blue-500 p-1"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                            <button onclick="deleteLog(${l.id})" class="text-red-100 hover:text-red-400 p-1"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7M4 7h16"/></svg></button>
                         </div>
                     </div>
-                    ${l.desc ? `<div class="px-4 pb-3"><div class="bg-slate-50/80 rounded-xl p-2.5 border border-slate-100/50"><p class="text-[10px] text-slate-500 font-medium leading-relaxed italic">"${l.desc}"</p></div></div>` : ''}
+                    ${l.desc ? `<div class="px-4 pb-3"><div class="bg-slate-50/80 rounded-xl p-2.5 border border-slate-100/50"><p class="text-[10px] text-slate-500 font-medium italic">"${l.desc}"</p></div></div>` : ''}
                 </div>
             `).join('');
             renderTopThree();
         }
 
-        // --- 表單提交 (處理新增與編輯) ---
-        document.getElementById('timeForm').onsubmit = (e) => {
-            e.preventDefault();
-            const editId = document.getElementById('editId').value;
-            const logData = {
-                sd: document.getElementById('startDate').value.replace(/-/g, '/'),
-                ed: document.getElementById('endDate').value.replace(/-/g, '/'),
-                s: document.getElementById('startTime').value,
-                e: document.getElementById('endTime').value,
-                h: parseFloat(document.getElementById('hours').value),
-                c: document.getElementById('clientId').value.trim(),
-                cn: document.getElementById('caseId').value.trim(),
-                wc: document.getElementById('workCode').value,
-                ct: document.getElementById('caseType').value,
-                desc: document.getElementById('content').value.trim()
-            };
-
-            if (editId) {
-                const index = logs.findIndex(l => l.id == editId);
-                logs[index] = { ...logs[index], ...logData };
-                cancelEdit();
-            } else {
-                logs.unshift({ id: Date.now(), ...logData });
-            }
-            
-            localStorage.setItem(DB_KEY, JSON.stringify(logs));
-            init(); switchTab('list');
-        };
-
-        // --- 分析邏輯 (維持案號數量統計) ---
+        // --- 其他編輯與繪圖邏輯 ---
+        function startEdit(id) {
+            const log = logs.find(l => l.id === id); if (!log) return; switchTab('form');
+            document.getElementById('editId').value = log.id; document.getElementById('clientId').value = log.c;
+            document.getElementById('caseId').value = log.cn; document.getElementById('startDate').value = log.sd.replace(/\//g, '-');
+            document.getElementById('endDate').value = log.ed.replace(/\//g, '-'); document.getElementById('startTime').value = log.s;
+            document.getElementById('endTime').value = log.e; document.getElementById('hours').value = log.h.toFixed(1);
+            document.getElementById('content').value = log.desc || ""; document.getElementById('clientName').value = meta.clients[log.c] || "";
+            document.getElementById('matterName').value = meta.cases[log.cn] || ""; document.getElementById('editBadge').classList.remove('hidden');
+            document.getElementById('submitBtn').innerText = "Update Record"; document.getElementById('submitBtn').classList.replace('bg-blue-600', 'bg-orange-500');
+        }
+        function cancelEdit() { document.getElementById('timeForm').reset(); document.getElementById('editId').value = ""; document.getElementById('editBadge').classList.add('hidden'); document.getElementById('submitBtn').innerText = "Save Record"; document.getElementById('submitBtn').classList.replace('bg-orange-500', 'bg-blue-600'); init(); }
         function renderCharts() {
             if (pChart) pChart.destroy(); if (bChart) bChart.destroy();
-            const catMap = {}; 
-            logs.forEach(l => { if(!catMap[l.ct]) catMap[l.ct] = new Set(); catMap[l.ct].add(l.cn); });
+            const catMap = {}; logs.forEach(l => { if(!catMap[l.ct]) catMap[l.ct] = new Set(); catMap[l.ct].add(l.cn); });
             const labels = Object.keys(catMap);
             pChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
                 type: 'doughnut',
@@ -246,35 +258,6 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
-
-        function showCategoryDetails(cat) {
-            const area = document.getElementById('drillDownArea'), list = document.getElementById('drillDownList'), title = document.getElementById('drillDownTitle');
-            const filtered = logs.filter(l => l.ct === cat);
-            const stats = {}; filtered.forEach(l => { if(!stats[l.cn]) stats[l.cn] = {h:0, c:l.c}; stats[l.cn].h += l.h; });
-            title.innerText = cat;
-            list.innerHTML = Object.entries(stats).sort((a,b)=>b[1].h-a[1].h).map(([cn, d]) => `
-                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
-                    <div><p class="text-[8px] font-black text-slate-400 uppercase">${d.c}</p><h3 class="font-bold text-slate-800 text-xs">${cn}</h3><p class="text-[10px] text-blue-500 font-bold">${meta.cases[cn] || ''}</p></div>
-                    <div class="text-right"><span class="text-lg font-black font-mono text-slate-900">${d.h.toFixed(1)}</span></div>
-                </div>
-            `).join('');
-            area.classList.remove('hidden'); area.scrollIntoView({ behavior: 'smooth' });
-        }
-
-        // --- 其他核心邏輯 (維持不變) ---
-        function openIdManager() { document.getElementById('idManagerModal').style.display = 'flex'; renderIdList(); }
-        function closeIdManager() { document.getElementById('idManagerModal').style.display = 'none'; }
-        function switchManageTab(t) { currentManageTab = t; renderIdList(); }
-        function renderIdList() {
-            const list = document.getElementById('idListScroll'); const data = currentManageTab === 'client' ? meta.clients : meta.cases;
-            list.innerHTML = Object.entries(data).map(([id, name]) => `
-                <div class="bg-white p-3 rounded-xl flex justify-between items-center">
-                    <div><p class="text-[8px] font-black text-slate-400">${id}</p><p class="text-xs font-bold">${name}</p></div>
-                    <button onclick="deleteIdEntry('${id}')" class="text-red-400 p-2"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
-                </div>
-            `).join('');
-        }
-        function deleteIdEntry(id) { if (confirm(`刪除 "${id}"？`)) { if (currentManageTab === 'client') delete meta.clients[id]; else delete meta.cases[id]; localStorage.setItem(META_KEY, JSON.stringify(meta)); renderIdList(); } }
         function deleteLog(id) { if (confirm("確定刪除？")) { logs = logs.filter(l => l.id !== id); localStorage.setItem(DB_KEY, JSON.stringify(logs)); updateUI(); } }
         function checkAndLearn(type) {
             const idVal = document.getElementById(type === 'client' ? 'clientId' : 'caseId').value.trim();
@@ -304,6 +287,13 @@
             }
         }
         ['startDate', 'startTime', 'endDate', 'endTime'].forEach(id => document.getElementById(id).onchange = calc);
+        document.getElementById('timeForm').onsubmit = (e) => {
+            e.preventDefault();
+            const editId = document.getElementById('editId').value;
+            const logData = { sd: document.getElementById('startDate').value.replace(/-/g, '/'), ed: document.getElementById('endDate').value.replace(/-/g, '/'), s: document.getElementById('startTime').value, e: document.getElementById('endTime').value, h: parseFloat(document.getElementById('hours').value), c: document.getElementById('clientId').value.trim(), cn: document.getElementById('caseId').value.trim(), wc: document.getElementById('workCode').value, ct: document.getElementById('caseType').value, desc: document.getElementById('content').value.trim() };
+            if (editId) { const idx = logs.findIndex(l => l.id == editId); logs[idx] = { ...logs[idx], ...logData }; cancelEdit(); } else { logs.unshift({ id: Date.now(), ...logData }); }
+            localStorage.setItem(DB_KEY, JSON.stringify(logs)); init(); switchTab('list');
+        };
         function renderTopThree() {
             const freq = {}; logs.slice(0, 30).forEach(l => { const k = `${l.c}|${l.cn}`; freq[k] = (freq[k]||0)+1; });
             const top = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,3);
