@@ -3,97 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>工作紀錄 Pro | v8.0 Matter-Client Link</title>
+    <title>工作紀錄 Pro | v8.1 Cloud</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // ==========================================
+        // 1. 請在此處填入您的 Firebase Config
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCCBQr7Wnf0fbSgi80gCG5_N6jvLKgTwe4",
+            authDomain: "myworklogapp.firebaseapp.com",
+            projectId: "myworklogapp",
+            storage_bucket: "myworklogapp.firebasestorage.app",
+            messagingSenderId: "124208437276",
+            appId: "1:124208437276:web:4d8af62cf0c12beff8e7d9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // 暴露給全域與原本的 Script 互動
+        window.fbAuth = auth;
+        window.fbDb = db;
+        window.fbMethods = { signInWithEmailAndPassword, signOut, doc, getDoc, setDoc };
+
+        // 監測登入狀態
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('loginScreen').style.display = 'none';
+                syncFromCloud(user.uid);
+            } else {
+                document.getElementById('loginScreen').style.display = 'flex';
+            }
+        });
+    </script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-        :root { 
-            --safe-top: env(safe-area-inset-top);
-            --safe-bottom: env(safe-area-inset-bottom);
-            --header-height: 72px;
-        }
+        :root { --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom); --header-height: 72px; }
         body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; min-height: 100vh; padding-top: calc(var(--header-height) + var(--safe-top)); }
-        .fixed-header {
-            position: fixed; top: 0; left: 0; right: 0;
-            height: calc(var(--header-height) + var(--safe-top));
-            padding-top: var(--safe-top);
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(12px);
-            z-index: 1000; display: flex; align-items: center; justify-content: space-between;
-            padding-left: 1.25rem; padding-right: 1.25rem;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .spin-active { animation: spin 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        .fixed-header { position: fixed; top: 0; left: 0; right: 0; height: calc(var(--header-height) + var(--safe-top)); padding-top: var(--safe-top); background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); z-index: 1000; display: flex; align-items: center; justify-content: space-between; padding-left: 1.25rem; padding-right: 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .tab-content { display: none; }
         .tab-content.active { display: block; animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .iphone-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(20px); border-top: 1px solid rgba(0, 0, 0, 0.05); padding-bottom: var(--safe-bottom); z-index: 100; display: flex; height: calc(70px + var(--safe-bottom)); }
         .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; color: #94a3b8; }
         .active-tab-btn { color: #2563eb !important; }
-        .active-tab-btn::after { content: ''; position: absolute; bottom: 12px; width: 4px; height: 4px; background: #2563eb; border-radius: 50%; }
         input, select, textarea { font-size: 16px !important; border-radius: 0.75rem; }
-        .content-container { padding-bottom: calc(100px + var(--safe-bottom)); }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 20px; }
-        .modal-card { background: white; border-radius: 2rem; width: 100%; max-width: 400px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; }
     </style>
 </head>
-<body class="content-container">
+<body class="pb-32">
+
+    <div id="loginScreen" class="fixed inset-0 bg-slate-900 z-[9999] flex items-center justify-center p-6" style="display: none;">
+        <div class="bg-white rounded-[2.5rem] w-full max-w-sm p-8 space-y-6 shadow-2xl">
+            <div class="text-center">
+                <h2 class="text-2xl font-black text-slate-800">雲端同步登入</h2>
+                <p class="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">v8.1 Secure Access</p>
+            </div>
+            <div class="space-y-4">
+                <input type="email" id="loginEmail" placeholder="Email" class="w-full bg-slate-50 p-4 rounded-2xl border-0 font-bold outline-none">
+                <input type="password" id="loginPassword" placeholder="Password" class="w-full bg-slate-50 p-4 rounded-2xl border-0 font-bold outline-none">
+                <button onclick="handleLogin()" id="loginBtn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg hover:bg-blue-700 transition-colors">Login</button>
+            </div>
+            <p id="loginError" class="text-center text-red-500 text-[10px] font-bold"></p>
+        </div>
+    </div>
 
     <nav class="fixed-header text-white">
         <div class="flex items-center gap-3">
-            <button id="refreshBtn" onclick="handleRefresh()" class="bg-slate-800 p-2.5 rounded-xl border border-white/5 transition-all">
-                <svg id="refreshIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+            <button onclick="location.reload()" class="bg-slate-800 p-2.5 rounded-xl border border-white/5">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
             </button>
-            <div><h1 class="text-md font-extrabold tracking-tight">紀錄系統</h1><p class="text-[9px] font-bold text-blue-400 uppercase">v8.0 Matter-Client Linked</p></div>
+            <div><h1 class="text-md font-extrabold tracking-tight">紀錄系統</h1><p class="text-[9px] font-bold text-blue-400 uppercase">Cloud Sync Active</p></div>
         </div>
-        <div class="bg-blue-600/20 border border-blue-500/30 px-4 py-1.5 rounded-2xl text-right">
-            <p class="text-[9px] font-black text-blue-400 uppercase mb-0.5">Today Total</p>
-            <p class="text-xl font-black font-mono text-white" id="navDayTotal">0.0</p>
+        <div class="flex items-center gap-2">
+            <button onclick="window.fbMethods.signOut(window.fbAuth)" class="text-[9px] font-black bg-white/10 px-2 py-1 rounded-lg">LOGOUT</button>
+            <div class="bg-blue-600/20 border border-blue-500/30 px-3 py-1.5 rounded-2xl text-right">
+                <p class="text-xl font-black font-mono text-white" id="navDayTotal">0.0</p>
+            </div>
         </div>
     </nav>
 
-    <div id="idManagerModal" class="modal-overlay"><div class="modal-card"><div class="p-6 border-b border-slate-100 flex justify-between items-center"><div><h2 class="text-xl font-black text-slate-800">ID 管理中心</h2><p class="text-[10px] font-bold text-slate-400 uppercase">Database Editor</p></div><button onclick="closeIdManager()" class="bg-slate-100 p-2 rounded-full text-slate-400">✕</button></div><div class="flex p-2 bg-slate-50 gap-1"><button id="manage-tab-client" onclick="switchManageTab('client')" class="flex-1 py-2 text-[11px] font-black rounded-xl bg-white shadow-sm text-blue-600">CLIENTS</button><button id="manage-tab-case" onclick="switchManageTab('case')" class="flex-1 py-2 text-[11px] font-black rounded-xl text-slate-400">MATTERS</button></div><div id="idListScroll" class="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/50"></div><div class="p-4 bg-white"><button onclick="closeIdManager()" class="w-full bg-slate-900 text-white py-3 rounded-2xl font-black text-xs uppercase">Done</button></div></div></div>
-    <div id="learningModal" class="modal-overlay"><div class="modal-card !max-w-[320px] p-6 space-y-4"><div class="text-center"><span class="bg-blue-100 text-blue-600 text-[10px] font-black px-3 py-1 rounded-full uppercase">New Discovery</span><h2 class="text-lg font-extrabold text-slate-800 mt-2" id="modalTitle">輸入名稱</h2><p class="text-xs text-slate-400" id="modalSubtitle">ID: ---</p></div><input type="text" id="modalInput" class="w-full bg-slate-50 p-4 text-center font-bold text-slate-700 outline-none" placeholder="請輸入名稱..."><button onclick="confirmLearning()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm uppercase">Confirm</button></div></div>
+    <div id="idManagerModal" class="modal-overlay"><div class="modal-card bg-white rounded-[2rem] w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh]"><div class="p-6 border-b border-slate-100 flex justify-between items-center"><h2 class="text-xl font-black">ID 管理中心</h2><button onclick="closeIdManager()" class="text-slate-400">✕</button></div><div id="idListScroll" class="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50"></div><div class="p-4"><button onclick="closeIdManager()" class="w-full bg-slate-900 text-white py-3 rounded-2xl font-black">Done</button></div></div></div>
+    
+    <div id="learningModal" class="modal-overlay"><div class="modal-card bg-white rounded-[2rem] p-6 space-y-4 w-full max-w-[320px] text-center"><h2 class="text-lg font-extrabold" id="modalTitle">新發現</h2><p class="text-xs text-slate-400" id="modalSubtitle">ID: ---</p><input type="text" id="modalInput" class="w-full bg-slate-50 p-4 text-center font-bold rounded-2xl border-0" placeholder="輸入名稱..."><button onclick="confirmLearning()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase">Confirm</button></div></div>
 
     <div class="p-4 max-w-md mx-auto">
         <div id="tab-form" class="tab-content active">
             <div id="topFrequency" class="mb-4 flex gap-2 overflow-x-auto pb-2"></div>
             <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-200">
-                <div id="editBadge" class="hidden mb-4 bg-orange-50 text-orange-600 text-[10px] font-black px-3 py-2 rounded-xl border border-orange-100 flex justify-between items-center"><span>EDITING RECORD</span><button onclick="cancelEdit()" class="underline">CANCEL</button></div>
+                <div id="editBadge" class="hidden mb-4 bg-orange-50 text-orange-600 text-[10px] font-black px-3 py-2 rounded-xl border border-orange-100 flex justify-between items-center"><span>EDITING</span><button onclick="cancelEdit()" class="underline">CANCEL</button></div>
                 <form id="timeForm" class="space-y-4">
                     <input type="hidden" id="editId">
                     <div class="grid grid-cols-2 gap-3">
-                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Client ID</label><input type="text" id="clientId" required class="w-full bg-slate-50 p-3 text-center text-sm font-bold font-mono border-0" onblur="checkAndLearn('client'); autoFillCaseType(); updateMatterNameDisplay();"></div>
+                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Client ID</label><input type="text" id="clientId" required class="w-full bg-slate-50 p-3 text-center text-sm font-bold border-0 uppercase" onblur="checkAndLearn('client'); autoFillCaseType(); updateMatterNameDisplay();"></div>
                         <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Client Name</label><input type="text" id="clientName" class="w-full bg-slate-100 p-3 text-center text-sm text-slate-400 border-0" readonly></div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
-                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Case No.</label><input type="text" id="caseId" required class="w-full bg-slate-50 p-3 text-center text-sm font-bold font-mono border-0" onblur="checkAndLearn('case'); autoFillCaseType(); updateMatterNameDisplay();"></div>
+                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Case No.</label><input type="text" id="caseId" required class="w-full bg-slate-50 p-3 text-center text-sm font-bold border-0 uppercase" onblur="checkAndLearn('case'); autoFillCaseType(); updateMatterNameDisplay();"></div>
                         <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Matter Name</label><input type="text" id="matterName" class="w-full bg-slate-100 p-3 text-center text-sm text-slate-400 border-0" readonly></div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
-                        <div class="bg-blue-50/50 p-3 rounded-[1.5rem] flex flex-col items-center border border-blue-100/30">
-                            <label class="text-[9px] font-black text-blue-600 uppercase mb-1">Start</label>
-                            <input type="date" id="startDate" class="w-full bg-white/80 p-2 text-xs font-bold text-center mb-1.5 border-0 rounded-xl">
-                            <input type="time" id="startTime" class="w-full bg-white p-2 text-xs font-bold text-center border-0 rounded-xl">
-                        </div>
-                        <div class="bg-indigo-50/50 p-3 rounded-[1.5rem] flex flex-col items-center border border-indigo-100/30">
-                            <label class="text-[9px] font-black text-indigo-600 uppercase mb-1">End</label>
-                            <input type="date" id="endDate" class="w-full bg-white/80 p-2 text-xs font-bold text-center mb-1.5 border-0 rounded-xl">
-                            <input type="time" id="endTime" class="w-full bg-white p-2 text-xs font-bold text-center border-0 rounded-xl">
-                        </div>
+                        <div class="bg-blue-50/50 p-3 rounded-[1.5rem] flex flex-col items-center"><input type="date" id="startDate" class="w-full bg-white p-2 text-xs font-bold text-center mb-1"><input type="time" id="startTime" class="w-full bg-white p-2 text-xs font-bold text-center"></div>
+                        <div class="bg-indigo-50/50 p-3 rounded-[1.5rem] flex flex-col items-center"><input type="date" id="endDate" class="w-full bg-white p-2 text-xs font-bold text-center mb-1"><input type="time" id="endTime" class="w-full bg-white p-2 text-xs font-bold text-center"></div>
                     </div>
                     <input type="text" id="hours" readonly class="w-full bg-slate-900 text-blue-400 font-black rounded-2xl p-4 text-center text-3xl border-0" value="0.0">
                     <div class="grid grid-cols-2 gap-3">
-                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Work Code</label><select id="workCode" class="w-full bg-slate-50 p-3 text-center text-sm font-bold border-0"><option value="D">D</option><option value="RW">RW</option><option value="CF">CF</option><option value="RA">RA</option></select></div>
-                        <div class="space-y-1"><label class="px-1 text-[9px] font-black text-slate-400 uppercase">Case Type</label><select id="caseType" class="w-full bg-slate-50 p-3 text-center text-sm font-bold border-0"><option value="M&A">M&A</option><option value="General Corporate">General Corporate</option><option value="Corporate Financing">Corporate Financing</option><option value="Project Financing">Project Financing</option><option value="Bond Issuance">Bond Issuance</option><option value="Formosa Bond">Formosa Bond</option><option value="金融商品">金融商品</option><option value="投信投顧">投信投顧</option><option value="PE Fund">PE Fund</option><option value="金融機構併購">金融機構併購</option><option value="個人資料保護">個人資料保護</option><option value="其他">其他</option></select></div>
+                        <select id="workCode" class="w-full bg-slate-50 p-3 text-sm font-bold border-0"><option value="D">D</option><option value="RW">RW</option><option value="CF">CF</option><option value="RA">RA</option></select>
+                        <select id="caseType" class="w-full bg-slate-50 p-3 text-sm font-bold border-0"><option value="M&A">M&A</option><option value="General Corporate">General Corporate</option><option value="Corporate Financing">Corporate Financing</option><option value="Project Financing">Project Financing</option><option value="Bond Issuance">Bond Issuance</option><option value="Formosa Bond">Formosa Bond</option><option value="金融商品">金融商品</option><option value="投信投顧">投信投顧</option><option value="PE Fund">PE Fund</option><option value="金融機構併購">金融機構併購</option><option value="個人資料保護">個人資料保護</option><option value="其他">其他</option></select>
                     </div>
                     <textarea id="content" rows="2" class="w-full bg-slate-50 p-3 text-sm font-medium border-0" placeholder="內容說明..."></textarea>
-                    <button type="submit" id="submitBtn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm uppercase shadow-lg">Save Record</button>
+                    <button type="submit" id="submitBtn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase shadow-lg">Save & Sync</button>
                 </form>
             </div>
         </div>
@@ -101,23 +131,15 @@
         <div id="tab-analysis" class="tab-content">
             <div class="space-y-4">
                 <div class="bg-white p-5 rounded-[2rem] border border-slate-200 h-48"><canvas id="barChart"></canvas></div>
-                <div class="bg-white p-5 rounded-[2rem] border border-slate-200">
-                    <div class="text-center mb-2"><p class="text-[10px] font-black text-slate-400 uppercase">Case Count by Category (Excl. L00640)</p></div>
-                    <div class="h-64"><canvas id="pieChart"></canvas></div>
-                </div>
-                <div id="drillDownArea" class="hidden animate-fadeIn space-y-3">
-                    <div class="flex justify-between items-end px-2"><h2 id="drillDownTitle" class="text-lg font-black text-slate-800">類別明細</h2><button onclick="document.getElementById('drillDownArea').classList.add('hidden')" class="text-[10px] font-bold text-slate-400">CLOSE</button></div>
-                    <div id="drillDownList" class="space-y-2 pb-10"></div>
-                </div>
+                <div class="bg-white p-5 rounded-[2rem] border border-slate-200 h-72"><canvas id="pieChart"></canvas></div>
+                <div id="drillDownArea" class="hidden space-y-3"><h2 id="drillDownTitle" class="font-black px-2"></h2><div id="drillDownList" class="space-y-2"></div></div>
             </div>
         </div>
 
         <div id="tab-list" class="tab-content">
             <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-200 mb-4 space-y-3">
-                <div class="flex justify-between items-center mb-1"><span class="text-[10px] font-black text-slate-400 uppercase">Filters & L&L Export</span><button onclick="openIdManager()" class="text-[10px] font-black text-blue-600 uppercase px-3 py-1 bg-blue-50 rounded-lg">Manage IDs</button></div>
-                <div class="grid grid-cols-2 gap-2"><input type="date" id="qStart" class="bg-slate-50 p-2 text-[10px] text-center font-bold" onchange="updateUI()"><input type="date" id="qEnd" class="bg-slate-50 p-2 text-[10px] text-center font-bold" onchange="updateUI()"></div>
-                <div class="grid grid-cols-2 gap-2"><input type="text" id="qClient" placeholder="Client ID" class="bg-slate-50 p-2 text-[10px] text-center font-bold font-mono" oninput="updateUI()"><input type="text" id="qCase" placeholder="Case No." class="bg-slate-50 p-2 text-[10px] text-center font-bold font-mono" oninput="updateUI()"></div>
-                <div class="grid grid-cols-2 gap-2"><button onclick="updateUI()" class="w-full bg-slate-900 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest">Refresh</button><button onclick="exportLL()" class="w-full bg-emerald-600 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest">L&L 匯出</button></div>
+                <div class="grid grid-cols-2 gap-2"><input type="date" id="qStart" class="bg-slate-50 p-2 text-[10px] font-bold" onchange="updateUI()"><input type="date" id="qEnd" class="bg-slate-50 p-2 text-[10px] font-bold" onchange="updateUI()"></div>
+                <div class="grid grid-cols-2 gap-2"><button onclick="updateUI()" class="bg-slate-900 text-white py-2 rounded-xl text-[10px] font-black uppercase">Filter</button><button onclick="exportLL()" class="bg-emerald-600 text-white py-2 rounded-xl text-[10px] font-black uppercase">Export CSV</button></div>
             </div>
             <div id="logContainer" class="space-y-3"></div>
         </div>
@@ -133,231 +155,184 @@
         const DB_KEY = 'work_logs_final'; const META_KEY = 'meta_data_v4';
         let logs = JSON.parse(localStorage.getItem(DB_KEY) || '[]');
         let meta = JSON.parse(localStorage.getItem(META_KEY) || '{"clients":{}, "cases":{}}');
-        let currentManageTab = 'client'; let pChart, bChart, learningType = '';
+        let pChart, bChart, learningType = '';
 
-        function init() { 
-            // 結構轉換 (Migration): 確保舊有的 cases 資料能在新結構中運作
-            if (typeof meta.cases === 'string' || (meta.cases && Array.isArray(Object.keys(meta.cases)) && typeof Object.values(meta.cases)[0] === 'string')) {
-                // 如果發現 meta.cases 還是扁平結構，暫時保留它，但在學習時會開始寫入新結構
-                // 為了相容性，我們不做強制破壞性轉換，而是讓程式碼具備「雙向查詢」能力
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const pass = document.getElementById('loginPassword').value;
+            const btn = document.getElementById('loginBtn');
+            btn.innerText = "Connecting...";
+            try {
+                await window.fbMethods.signInWithEmailAndPassword(window.fbAuth, email, pass);
+            } catch (e) {
+                document.getElementById('loginError').innerText = "登入失敗：" + e.message;
+                btn.innerText = "Login";
             }
-            const now = new Date(); const todayStr = now.toISOString().split('T')[0];
-            document.getElementById('startDate').value = todayStr; document.getElementById('endDate').value = todayStr;
-            
-            document.getElementById('clientId').addEventListener('input', function() { 
-                const val = this.value.trim().toUpperCase();
-                document.getElementById('clientName').value = meta.clients[val] || ""; 
-                updateMatterNameDisplay(); // 客戶改變，案件名稱也要更新
-            });
-            document.getElementById('caseId').addEventListener('input', updateMatterNameDisplay);
-            updateUI(); 
         }
 
-        // 重要修改：獲取案件名稱（掛鉤 Client ID）
-        function getMatterName(cId, csId) {
-            if (!cId || !csId) return "";
-            if (meta.cases[cId] && meta.cases[cId][csId]) {
-                return meta.cases[cId][csId];
+        async function syncFromCloud(uid) {
+            try {
+                const docRef = window.fbMethods.doc(window.fbDb, "users", uid);
+                const docSnap = await window.fbMethods.getDoc(docRef);
+                if (docSnap.exists()) {
+                    const cloud = docSnap.data();
+                    // 如果雲端有資料，且雲端比較新或本地為空時同步
+                    logs = cloud.logs || [];
+                    meta = cloud.meta || {clients:{}, cases:{}};
+                    localStorage.setItem(DB_KEY, JSON.stringify(logs));
+                    localStorage.setItem(META_KEY, JSON.stringify(meta));
+                }
+                init();
+            } catch (e) { console.error("Sync Error:", e); init(); }
+        }
+
+        async function saveToCloud() {
+            const user = window.fbAuth.currentUser;
+            if (user) {
+                await window.fbMethods.setDoc(window.fbMethods.doc(window.fbDb, "users", user.uid), {
+                    logs: logs,
+                    meta: meta,
+                    lastUpdated: new Date().toISOString()
+                });
             }
-            // 向上相容：如果在該客戶下找不到，看看是否在舊有的扁平結構中
-            if (typeof meta.cases[csId] === 'string') {
-                return meta.cases[csId];
-            }
-            return "";
+        }
+
+        function init() {
+            const now = new Date(); const todayStr = now.toISOString().split('T')[0];
+            document.getElementById('startDate').value = todayStr; document.getElementById('endDate').value = todayStr;
+            updateUI();
         }
 
         function updateMatterNameDisplay() {
             const cId = document.getElementById('clientId').value.trim().toUpperCase();
             const csId = document.getElementById('caseId').value.trim().toUpperCase();
-            document.getElementById('matterName').value = getMatterName(cId, csId);
+            document.getElementById('matterName').value = (meta.cases[cId] && meta.cases[cId][csId]) ? meta.cases[cId][csId] : (meta.cases[csId] || "");
         }
 
         function autoFillCaseType() {
             const cId = document.getElementById('clientId').value.trim();
             const csId = document.getElementById('caseId').value.trim();
-            if (cId && csId) {
-                const lastLog = logs.find(l => l.c === cId && l.cn === csId);
-                if (lastLog && lastLog.ct) document.getElementById('caseType').value = lastLog.ct;
+            const lastLog = logs.find(l => l.c === cId && l.cn === csId);
+            if (lastLog) document.getElementById('caseType').value = lastLog.ct;
+        }
+
+        document.getElementById('timeForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const editId = document.getElementById('editId').value;
+            const logData = {
+                id: editId ? parseInt(editId) : Date.now(),
+                sd: document.getElementById('startDate').value.replace(/-/g, '/'),
+                ed: document.getElementById('endDate').value.replace(/-/g, '/'),
+                s: document.getElementById('startTime').value,
+                e: document.getElementById('endTime').value,
+                h: parseFloat(document.getElementById('hours').value),
+                c: document.getElementById('clientId').value.trim().toUpperCase(),
+                cn: document.getElementById('caseId').value.trim().toUpperCase(),
+                wc: document.getElementById('workCode').value,
+                ct: document.getElementById('caseType').value,
+                desc: document.getElementById('content').value.trim()
+            };
+            if (editId) { const idx = logs.findIndex(l => l.id == editId); logs[idx] = logData; }
+            else { logs.unshift(logData); }
+            
+            localStorage.setItem(DB_KEY, JSON.stringify(logs));
+            await saveToCloud(); // 同步到雲端
+            location.reload();
+        };
+
+        function calc() {
+            const d1 = document.getElementById('startDate').value, t1 = document.getElementById('startTime').value,
+                  d2 = document.getElementById('endDate').value, t2 = document.getElementById('endTime').value;
+            if(d1 && t1 && d2 && t2) {
+                const diff = (new Date(`${d2}T${t2}`) - new Date(`${d1}T${t1}`)) / 60000;
+                document.getElementById('hours').value = diff >= 0 ? (Math.ceil(diff / 6) / 10).toFixed(1) : "0.0";
             }
         }
+        ['startDate', 'startTime', 'endDate', 'endTime'].forEach(id => document.getElementById(id).onchange = calc);
 
-        function handleRefresh() {
-            const icon = document.getElementById('refreshIcon');
-            icon.classList.add('spin-active');
-            setTimeout(() => { location.reload(); }, 600);
+        function checkAndLearn(type) {
+            const cId = document.getElementById('clientId').value.trim().toUpperCase();
+            const idVal = document.getElementById(type === 'client' ? 'clientId' : 'caseId').value.trim().toUpperCase();
+            if (!idVal) return;
+            if (type === 'client' && meta.clients[idVal]) { document.getElementById('clientName').value = meta.clients[idVal]; return; }
+            if (type === 'case') {
+                if (!cId) return;
+                if (meta.cases[cId] && meta.cases[cId][idVal]) { updateMatterNameDisplay(); return; }
+            }
+            learningType = type;
+            document.getElementById('modalTitle').innerText = `學習新 ${type.toUpperCase()}`;
+            document.getElementById('modalSubtitle').innerText = `ID: ${idVal}`;
+            document.getElementById('learningModal').style.display = 'flex';
         }
 
-        function exportLL() {
-            const qs = document.getElementById('qStart').value.replace(/-/g, '/'), qe = document.getElementById('qEnd').value.replace(/-/g, '/'), qc = document.getElementById('qClient').value.trim().toUpperCase(), qcas = document.getElementById('qCase').value.trim().toUpperCase();
-            if (!qs || !qe) { alert("請先選擇區間"); return; }
-            const filtered = logs.filter(l => {
-                const dateMatch = (l.sd >= qs && l.sd <= qe), clientMatch = !qc || l.c.toUpperCase().includes(qc), caseMatch = !qcas || l.cn.toUpperCase().includes(qcas);
-                return dateMatch && clientMatch && caseMatch;
-            }).sort((a,b) => b.sd.localeCompare(a.sd) || b.s.localeCompare(a.s));
-            if (!filtered.length) { alert("無資料"); return; }
-            let csv = "\uFEFF承辦人員(Initial),工作日期(e.g.20201031),客戶代碼,案件代碼,處理時數(e.g.2.0),工作代碼(e.g.RA/D...),處理說明,客戶對應碼\n";
-            filtered.forEach(l => {
-                csv += `="CYE","${l.sd.replace(/\//g, '')}","${l.c}","${l.cn}",${l.h.toFixed(1)},"${l.wc}","${l.desc.replace(/"/g, '""')}",""\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
-            link.download = `LL_Report_${qs.replace(/\//g,'')}_${qe.replace(/\//g,'')}.csv`; link.click();
+        async function confirmLearning() {
+            const name = document.getElementById('modalInput').value.trim();
+            const cId = document.getElementById('clientId').value.trim().toUpperCase();
+            const csId = document.getElementById('caseId').value.trim().toUpperCase();
+            if (name) {
+                if (learningType === 'client') meta.clients[cId] = name;
+                else { if (!meta.cases[cId]) meta.cases[cId] = {}; meta.cases[cId][csId] = name; }
+                localStorage.setItem(META_KEY, JSON.stringify(meta));
+                await saveToCloud();
+                updateMatterNameDisplay();
+                document.getElementById('clientName').value = meta.clients[cId] || "";
+            }
+            document.getElementById('learningModal').style.display = 'none';
         }
 
         function updateUI() {
             const now = new Date(); const todaySlash = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
             document.getElementById('navDayTotal').innerText = logs.filter(l => l.sd === todaySlash).reduce((s, c) => s + c.h, 0).toFixed(1);
+            
             const container = document.getElementById('logContainer');
-            const qs = document.getElementById('qStart').value.replace(/-/g, '/'), qe = document.getElementById('qEnd').value.replace(/-/g, '/'), qc = document.getElementById('qClient').value.trim().toUpperCase(), qcas = document.getElementById('qCase').value.trim().toUpperCase();
-            const filtered = logs.filter(l => {
-                const dateMatch = (!qs || l.sd >= qs) && (!qe || l.sd <= qe), clientMatch = !qc || l.c.toUpperCase().includes(qc), caseMatch = !qcas || l.cn.toUpperCase().includes(qcas);
-                return dateMatch && clientMatch && caseMatch;
-            }).sort((a,b) => b.sd.localeCompare(a.sd) || b.s.localeCompare(a.s));
+            const qs = document.getElementById('qStart').value.replace(/-/g, '/'), qe = document.getElementById('qEnd').value.replace(/-/g, '/');
+            const filtered = logs.filter(l => (!qs || l.sd >= qs) && (!qe || l.sd <= qe)).sort((a,b) => b.sd.localeCompare(a.sd) || b.s.localeCompare(a.s));
+            
             container.innerHTML = filtered.map(l => `
-                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-fadeIn">
-                    <div class="p-4 flex justify-between items-start">
-                        <div class="flex-grow pr-2">
-                            <div class="flex items-center gap-2 mb-1"><span class="text-[9px] text-blue-600 font-black px-2 py-0.5 bg-blue-50 rounded-md">${l.sd}</span><span class="text-[9px] text-slate-400 font-bold font-mono uppercase tracking-tighter">${l.s} - ${l.e}</span></div>
-                            <h3 class="font-extrabold text-slate-800 text-[11px] leading-tight">${l.c} <span class="text-slate-400 font-medium">(${meta.clients[l.c] || 'N/A'})</span></h3>
-                            <p class="text-[10px] text-blue-500 font-black mt-0.5">${l.cn} <span class="text-slate-400 font-bold ml-1">${getMatterName(l.c, l.cn)}</span></p>
+                <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-[9px] font-black text-blue-600 mb-1">${l.sd} ${l.s}-${l.e}</p>
+                            <h3 class="font-bold text-xs">${l.c} | ${l.cn}</h3>
+                            <p class="text-[10px] text-slate-400 font-bold">${(meta.cases[l.c] && meta.cases[l.c][l.cn]) ? meta.cases[l.c][l.cn] : '---'}</p>
                         </div>
-                        <div class="flex items-center gap-1.5">
-                            <div class="text-right mr-1"><p class="text-lg font-black font-mono text-slate-900 leading-none">${l.h.toFixed(1)}</p><p class="text-[7px] font-black text-slate-300 uppercase">Hours</p></div>
-                            <button onclick="startEdit(${l.id})" class="text-slate-300 hover:text-blue-500 p-1"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                            <button onclick="deleteLog(${l.id})" class="text-red-100 hover:text-red-400 p-1"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7M4 7h16"/></svg></button>
+                        <div class="text-right">
+                            <p class="text-xl font-mono font-black">${l.h.toFixed(1)}</p>
+                            <div class="flex gap-2 mt-2">
+                                <button onclick="startEdit(${l.id})" class="text-blue-500 text-[10px] font-bold">EDIT</button>
+                                <button onclick="deleteLog(${l.id})" class="text-red-400 text-[10px] font-bold">DEL</button>
+                            </div>
                         </div>
                     </div>
-                    ${l.desc ? `<div class="px-4 pb-3"><div class="bg-slate-50/80 rounded-xl p-2.5 border border-slate-100/50"><p class="text-[10px] text-slate-500 font-medium italic">"${l.desc}"</p></div></div>` : ''}
                 </div>
             `).join('');
             renderTopThree();
         }
 
-        function renderCharts() { 
-            if (pChart) pChart.destroy(); if (bChart) bChart.destroy();
-            const catMap = {}; logs.forEach(l => { if (l.c === 'L00640') return; if(!catMap[l.ct]) catMap[l.ct] = new Set(); catMap[l.ct].add(l.cn); });
-            const labels = Object.keys(catMap); const dataValues = labels.map(k=>catMap[k].size);
-            pChart = new Chart(document.getElementById('pieChart').getContext('2d'), { 
-                type: 'doughnut', plugins: [ChartDataLabels], 
-                data: { labels, datasets: [{ data: dataValues, backgroundColor: ['#3b82f6','#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#a855f7','#64748b'] }] },
-                options: { responsive: true, maintainAspectRatio: false, onClick: (e, el) => { if(el.length) showCategoryDetails(labels[el[0].index]); }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9, weight: 'bold' } } }, datalabels: { formatter: (v, ctx) => { let sum = 0; ctx.chart.data.datasets[0].data.map(d => sum += d); return (v * 100 / sum).toFixed(0) + "%"; }, color: '#fff', font: { weight: 'bold', size: 10 } } } }
-            });
-            const md = {}; logs.forEach(l => { const m = l.sd.substring(0, 7); md[m] = (md[m]||0)+l.h; });
-            const sorted = Object.keys(md).sort();
-            bChart = new Chart(document.getElementById('barChart').getContext('2d'), { type: 'bar', data: { labels: sorted, datasets: [{ data: sorted.map(m=>md[m]), backgroundColor: '#3b82f6', borderRadius: 8 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { display: false } } } });
+        function renderTopThree() {
+            const freq = {}; logs.slice(0, 30).forEach(l => { const k = `${l.c}|${l.cn}`; freq[k] = (freq[k]||0)+1; });
+            const top = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,3);
+            document.getElementById('topFrequency').innerHTML = top.map(([k]) => `<div onclick="applyQuick('${k.split('|')[0]}','${k.split('|')[1]}')" class="bg-blue-600 text-white text-[9px] px-3 py-2 rounded-full font-black whitespace-nowrap">🔥 ${k.split('|')[1]}</div>`).join('');
         }
 
-        function showCategoryDetails(cat) {
-            const area = document.getElementById('drillDownArea'), list = document.getElementById('drillDownList'), title = document.getElementById('drillDownTitle');
-            const filtered = logs.filter(l => l.ct === cat && l.c !== 'L00640'), uniqueCases = []; const seen = new Set(); 
-            filtered.forEach(l => { if(!seen.has(l.cn)) { uniqueCases.push(l); seen.add(l.cn); } });
-            title.innerText = cat; 
-            list.innerHTML = uniqueCases.map(l => `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div class="flex flex-col gap-0.5"><p class="text-[8px] font-black text-slate-400 uppercase">Client: ${l.c} - ${meta.clients[l.c] || 'N/A'}</p><p class="text-[8px] font-black text-blue-500 uppercase mt-0.5">Case No: ${l.cn}</p><h3 class="font-bold text-slate-800 text-xs">${getMatterName(l.c, l.cn)}</h3></div></div>`).join('');
-            area.classList.remove('hidden'); area.scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function startEdit(id) {
-            const log = logs.find(l => l.id === id); if (!log) return;
-            switchTab('form'); document.getElementById('editId').value = log.id;
-            document.getElementById('clientId').value = log.c; document.getElementById('caseId').value = log.cn;
-            document.getElementById('startDate').value = log.sd.replace(/\//g, '-'); document.getElementById('endDate').value = log.ed.replace(/\//g, '-');
-            document.getElementById('startTime').value = log.s; document.getElementById('endTime').value = log.e;
-            document.getElementById('hours').value = log.h.toFixed(1); document.getElementById('content').value = log.desc || "";
-            document.getElementById('clientName').value = meta.clients[log.c] || ""; 
-            document.getElementById('matterName').value = getMatterName(log.c, log.cn);
-            document.getElementById('workCode').value = log.wc; document.getElementById('caseType').value = log.ct;
-            document.getElementById('editBadge').classList.remove('hidden'); document.getElementById('submitBtn').innerText = "Update Record";
-            document.getElementById('submitBtn').classList.replace('bg-blue-600', 'bg-orange-500');
-        }
-        function cancelEdit() { document.getElementById('timeForm').reset(); document.getElementById('editId').value = ""; document.getElementById('editBadge').classList.add('hidden'); document.getElementById('submitBtn').innerText = "Save Record"; document.getElementById('submitBtn').classList.replace('bg-orange-500', 'bg-blue-600'); init(); }
-        function deleteLog(id) { if (confirm("確定刪除？")) { logs = logs.filter(l => l.id !== id); localStorage.setItem(DB_KEY, JSON.stringify(logs)); updateUI(); } }
-        document.getElementById('timeForm').onsubmit = (e) => { 
-            e.preventDefault(); const editId = document.getElementById('editId').value, logData = { sd: document.getElementById('startDate').value.replace(/-/g, '/'), ed: document.getElementById('endDate').value.replace(/-/g, '/'), s: document.getElementById('startTime').value, e: document.getElementById('endTime').value, h: parseFloat(document.getElementById('hours').value), c: document.getElementById('clientId').value.trim().toUpperCase(), cn: document.getElementById('caseId').value.trim().toUpperCase(), wc: document.getElementById('workCode').value, ct: document.getElementById('caseType').value, desc: document.getElementById('content').value.trim() }; 
-            if (editId) { const idx = logs.findIndex(l => l.id == editId); logs[idx] = { ...logs[idx], ...logData }; } else { logs.unshift({ id: Date.now(), ...logData }); } 
-            localStorage.setItem(DB_KEY, JSON.stringify(logs)); location.reload();
-        };
-
-        function openIdManager() { document.getElementById('idManagerModal').style.display = 'flex'; renderIdList(); }
-        function closeIdManager() { document.getElementById('idManagerModal').style.display = 'none'; }
-        function switchManageTab(t) { currentManageTab = t; renderIdList(); }
+        function applyQuick(c, m) { document.getElementById('clientId').value = c; document.getElementById('caseId').value = m; updateMatterNameDisplay(); autoFillCaseType(); calc(); }
+        function startEdit(id) { const l = logs.find(x => x.id === id); if(!l) return; switchTab('form'); document.getElementById('editId').value=l.id; document.getElementById('clientId').value=l.c; document.getElementById('caseId').value=l.cn; document.getElementById('startDate').value=l.sd.replace(/\//g,'-'); document.getElementById('startTime').value=l.s; document.getElementById('endDate').value=l.ed.replace(/\//g,'-'); document.getElementById('endTime').value=l.e; document.getElementById('content').value=l.desc; document.getElementById('hours').value=l.h; updateMatterNameDisplay(); document.getElementById('editBadge').classList.remove('hidden'); }
+        async function deleteLog(id) { if(confirm("Delete?")) { logs = logs.filter(l => l.id !== id); localStorage.setItem(DB_KEY, JSON.stringify(logs)); await saveToCloud(); updateUI(); } }
+        function switchTab(t) { document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active')); document.getElementById('tab-' + t).classList.add('active'); if(t==='analysis') renderCharts(); }
+        function closeIdManager() { document.getElementById('idManagerModal').style.display='none'; }
         
-        // 管理頁面顯示邏輯修正
-        function renderIdList() { 
-            const list = document.getElementById('idListScroll');
-            if (currentManageTab === 'client') {
-                list.innerHTML = Object.entries(meta.clients).map(([id, name]) => `<div class="bg-white p-3 rounded-xl flex justify-between items-center"><div><p class="text-[8px] font-black text-slate-400 uppercase">${id}</p><p class="text-xs font-bold text-slate-700">${name}</p></div><button onclick="deleteIdEntry('${id}')" class="text-red-300 p-2">🗑️</button></div>`).join('') || '<p class="text-center text-[10px] py-10">NO DATA</p>';
-            } else {
-                // 案件管理顯示巢狀結構
-                let html = "";
-                Object.entries(meta.cases).forEach(([cId, cases]) => {
-                    if (typeof cases === 'object') {
-                        Object.entries(cases).forEach(([csId, name]) => {
-                            html += `<div class="bg-white p-3 rounded-xl flex justify-between items-center"><div><p class="text-[8px] font-black text-blue-400 uppercase">Client: ${cId}</p><p class="text-[8px] font-black text-slate-400 uppercase">ID: ${csId}</p><p class="text-xs font-bold text-slate-700">${name}</p></div><button onclick="deleteIdEntry('${csId}', '${cId}')" class="text-red-300 p-2">🗑️</button></div>`;
-                        });
-                    } else if (typeof cases === 'string') {
-                        // 處理舊有扁平資料
-                        html += `<div class="bg-white p-3 rounded-xl flex justify-between items-center border-l-4 border-orange-200"><div><p class="text-[8px] font-black text-orange-400 uppercase">Legacy (No Client Link)</p><p class="text-[8px] font-black text-slate-400 uppercase">ID: ${cId}</p><p class="text-xs font-bold text-slate-700">${cases}</p></div><button onclick="deleteIdEntry('${cId}')" class="text-red-300 p-2">🗑️</button></div>`;
-                    }
-                });
-                list.innerHTML = html || '<p class="text-center text-[10px] py-10">NO DATA</p>';
-            }
+        function renderCharts() {
+            if (pChart) pChart.destroy(); if (bChart) bChart.destroy();
+            const catMap = {}; logs.forEach(l => { if (l.c === 'L00640') return; if(!catMap[l.ct]) catMap[l.ct] = new Set(); catMap[l.ct].add(l.c+l.cn); });
+            pChart = new Chart(document.getElementById('pieChart').getContext('2d'), { type: 'doughnut', data: { labels: Object.keys(catMap), datasets: [{ data: Object.values(catMap).map(s=>s.size), backgroundColor: ['#3b82f6','#6366f1','#10b981','#f59e0b','#ef4444'] }] }, options: { maintainAspectRatio: false } });
         }
 
-        function deleteIdEntry(id, parentId) { 
-            if (confirm(`刪除 "${id}"？`)) { 
-                if (currentManageTab === 'client') {
-                    delete meta.clients[id]; 
-                } else {
-                    if (parentId) delete meta.cases[parentId][id];
-                    else delete meta.cases[id];
-                }
-                localStorage.setItem(META_KEY, JSON.stringify(meta)); renderIdList(); 
-            } 
+        function exportLL() {
+            let csv = "\uFEFFInitial,Date,Client,Case,Hours,Code,Desc\n";
+            logs.forEach(l => { csv += `CYE,${l.sd.replace(/\//g,'')},${l.c},${l.cn},${l.h},${l.wc},"${l.desc}"\n`; });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "log.csv"; link.click();
         }
-
-        function checkAndLearn(type) { 
-            const idVal = document.getElementById(type === 'client' ? 'clientId' : 'caseId').value.trim().toUpperCase(); 
-            const cId = document.getElementById('clientId').value.trim().toUpperCase();
-            
-            if (!idVal) return;
-            if (type === 'client' && meta.clients[idVal]) return;
-            if (type === 'case') {
-                if (!cId) { alert("請先輸入 Client ID"); return; }
-                if (getMatterName(cId, idVal)) return;
-            }
-
-            learningType = type; 
-            document.getElementById('modalTitle').innerText = `新 ${type.toUpperCase()} 名稱`; 
-            document.getElementById('modalSubtitle').innerText = type === 'case' ? `Client: ${cId} | ID: ${idVal}` : `ID: ${idVal}`; 
-            document.getElementById('modalInput').value = ''; 
-            document.getElementById('learningModal').style.display = 'flex'; 
-        }
-
-        function confirmLearning() { 
-            const name = document.getElementById('modalInput').value.trim();
-            const cId = document.getElementById('clientId').value.trim().toUpperCase();
-            const csId = document.getElementById('caseId').value.trim().toUpperCase();
-
-            if (name) { 
-                if (learningType === 'client') {
-                    meta.clients[cId] = name; 
-                } else { 
-                    if (!meta.cases[cId]) meta.cases[cId] = {};
-                    meta.cases[cId][csId] = name; 
-                } 
-                localStorage.setItem(META_KEY, JSON.stringify(meta)); 
-                updateMatterNameDisplay();
-                document.getElementById('clientName').value = meta.clients[cId] || "";
-            } 
-            document.getElementById('learningModal').style.display = 'none'; 
-        }
-
-        function switchTab(t) { document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active')); document.getElementById('tab-' + t).classList.add('active'); document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-tab-btn')); document.getElementById('btn-' + t).classList.add('active-tab-btn'); if (t === 'analysis') renderCharts(); window.scrollTo(0,0); }
-        function calc() { const d1 = document.getElementById('startDate').value, t1 = document.getElementById('startTime').value, d2 = document.getElementById('endDate').value, t2 = document.getElementById('endTime').value; if(d1 && t1 && d2 && t2) { const diff = (new Date(`${d2}T${t2}`) - new Date(`${d1}T${t1}`)) / 60000; document.getElementById('hours').value = diff >= 0 ? (Math.ceil(diff / 6) / 10).toFixed(1) : "0.0"; } }
-        ['startDate', 'startTime', 'endDate', 'endTime'].forEach(id => document.getElementById(id).onchange = calc);
-        function renderTopThree() { const freq = {}; logs.slice(0, 30).forEach(l => { const k = `${l.c}|${l.cn}`; freq[k] = (freq[k]||0)+1; }); const top = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,3); document.getElementById('topFrequency').innerHTML = top.map(([k]) => `<div onclick="applyQuick('${k.split('|')[0]}','${k.split('|')[1]}')" class="bg-blue-600 text-white text-[9px] px-4 py-2 rounded-full font-black">🔥 ${k.split('|')[1]}</div>`).join(''); }
-        function applyQuick(c, m) { document.getElementById('clientId').value = c; document.getElementById('caseId').value = m; document.getElementById('clientName').value = meta.clients[c] || ""; updateMatterNameDisplay(); autoFillCaseType(); calc(); }
-        init();
     </script>
 </body>
 </html>
